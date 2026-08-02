@@ -6,9 +6,8 @@
 // le nom de ton compte et de ton dépôt) — elles peuvent rester
 // visibles dans ce fichier public.
 // ============================================================
-
 const GITHUB_REPO = {
-  owner: "TON-NOM-UTILISATEUR",   // ton nom d'utilisateur ou d'organisation GitHub
-  repo: "epej-app",               // le nom du dépôt
-  branch: "main"                  // la branche utilisée (généralement "main")
+  owner: "epej-intel",   // ton nom d'utilisateur ou d'organisation GitHub
+  repo: "app",           // le nom du dépôt
+  branch: "main"         // la branche utilisée (généralement "main")
 };
