@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>EPEJ — Église du Plein Évangile de Jésus-Christ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- Firebase (base de données partagée en temps réel) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script src="firebase-config.js"></script>
+<style>
+  :root{
+    --bg:#EAF2FF;
+    --bg-elevated:#F3F8FF;
+    --bg-card:#FFFFFF;
+    --border:rgba(15,45,90,0.12);
+    --blue:#2563EB;
+    --blue-deep:#1741A6;
+    --blue-soft:rgba(37,99,235,0.10);
+    --coral:#E85D3A;
+    --text:#0F2044;
+    --muted:#5B7699;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;background:var(--bg);}
+  body{
+    font-family:'Inter',system-ui,sans-serif;
+    color:var(--text);
+    display:flex;justify-content:center;
+    -webkit-font-smoothing:antialiased;
+  }
+  #shell{
+    width:100%;max-width:480px;min-height:100vh;
+    display:flex;flex-direction:column;position:relative;
+    background:linear-gradient(180deg, #DCEAFF 0%, var(--bg) 30%);
+  }
+  h1,h2,h3,.display{font-family:'Fraunces',serif;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  a{color:inherit;}
+  ::selection{background:var(--blue-soft);}
+  :focus-visible{outline:2px solid var(--blue);outline-offset:2px;}
+  @media (prefers-reduced-motion: reduce){*{animation-duration:0.001ms !important;transition:none !important;}}
+
+  /* ---- Top bar / tuner ---- */
+  .topbar{
+    padding:22px 20px 18px;
+    position:sticky;top:0;z-index:20;
+    background:linear-gradient(135deg, var(--blue) 0%, var(--blue-deep) 100%);
+    color:#fff;
+  }
+  .brand{display:flex;align-items:baseline;justify-content:space-between;gap:8px;}
+  .brand-name{font-size:22px;font-weight:600;letter-spacing:0.5px;color:#fff;}
+  .brand-sub{font-size:11.5px;color:rgba(255,255,255,0.78);margin-top:2px;line-height:1.4;}
+  .admin-btn{
+    background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);color:#fff;
+    width:34px;height:34px;border-radius:50%;font-size:15px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .admin-btn:hover{background:rgba(255,255,255,0.22);}
+
+  .tuner{
+    margin-top:16px;background:rgba(255,255,255,0.13);border:1px solid rgba(255,255,255,0.22);
+    border-radius:var(--radius);padding:12px 14px;display:flex;align-items:center;gap:12px;
+    cursor:pointer;
+  }
+  .tuner-bars{display:flex;align-items:flex-end;gap:2.5px;height:20px;width:26px;flex-shrink:0;}
+  .tuner-bars span{width:3.5px;background:#fff;border-radius:2px;opacity:0.4;}
+  .tuner-bars.live span{animation:eq 0.9s ease-in-out infinite;opacity:1;}
+  .tuner-bars span:nth-child(1){height:40%;animation-delay:0s;}
+  .tuner-bars span:nth-child(2){height:90%;animation-delay:0.15s;}
+  .tuner-bars span:nth-child(3){height:60%;animation-delay:0.3s;}
+  .tuner-bars span:nth-child(4){height:100%;animation-delay:0.1s;}
+  .tuner-bars span:nth-child(5){height:50%;animation-delay:0.25s;}
+  @keyframes eq{0%,100%{transform:scaleY(0.4);}50%{transform:scaleY(1);}}
+  .tuner-info{flex:1;min-width:0;}
+  .tuner-freq{font-size:15px;font-weight:600;color:#fff;}
+  .tuner-name{font-size:11px;color:rgba(255,255,255,0.75);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .tuner-status{font-size:9.5px;letter-spacing:1px;text-transform:uppercase;padding:4px 8px;border-radius:20px;flex-shrink:0;}
+  .tuner-status.on-air{background:var(--coral);color:#fff;}
+  .tuner-status.off-air{background:rgba(255,255,255,0.16);color:rgba(255,255,255,0.8);}
+
+  /* ---- Main content ---- */
+  main{flex:1;padding:20px 20px 100px;}
+  .section-title{font-size:24px;font-weight:600;margin:0 0 4px;color:var(--text);}
+  .section-eyebrow{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--blue);font-weight:600;margin-bottom:6px;}
+  .section-lede{color:var(--muted);font-size:13.5px;line-height:1.6;margin:0 0 22px;}
+
+  .card{
+    background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
+    padding:16px 18px;margin-bottom:12px;box-shadow:0 2px 10px rgba(20,60,120,0.05);
+  }
+  .card-title{font-size:16.5px;font-weight:600;margin:0 0 4px;font-family:'Fraunces',serif;color:var(--text);}
+  .card-meta{font-size:11.5px;color:var(--blue);font-weight:600;display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+  .card-meta span{display:inline-flex;align-items:center;gap:4px;}
+  .card-desc{font-size:13.5px;color:var(--muted);line-height:1.55;}
+  .card-link{display:inline-block;margin-top:10px;font-size:12.5px;color:var(--blue);text-decoration:none;border-bottom:1px solid rgba(37,99,235,0.4);}
+
+  .empty{
+    text-align:center;padding:48px 20px;color:var(--muted);
+    border:1px dashed var(--border);border-radius:var(--radius);font-size:13.5px;line-height:1.6;background:var(--bg-elevated);
+  }
+  .empty b{color:var(--text);display:block;font-family:'Fraunces',serif;font-size:17px;font-weight:600;margin-bottom:6px;}
+
+  .hero{
+    border-radius:var(--radius);padding:24px 20px;margin-bottom:22px;
+    background:linear-gradient(160deg, var(--blue) 0%, var(--blue-deep) 100%);
+    position:relative;overflow:hidden;color:#fff;
+  }
+  .hero:before{
+    content:'';position:absolute;top:-40%;right:-20%;width:200px;height:200px;border-radius:50%;
+    background:radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%);
+  }
+  .hero-eyebrow{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.85);}
+  .hero h1{font-size:26px;margin:8px 0 10px;line-height:1.15;font-weight:600;color:#fff;}
+  .hero p{font-size:13.5px;color:rgba(255,255,255,0.85);line-height:1.6;margin:0;position:relative;}
+  .hero-quote{font-style:italic;font-family:'Fraunces',serif;font-size:14.5px;color:#fff;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.25);position:relative;}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:22px;}
+  .stat{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:14px;}
+  .stat b{display:block;font-size:20px;font-family:'IBM Plex Mono',monospace;color:var(--blue);}
+  .stat span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+
+  /* ---- Radio player ---- */
+  .dial{
+    background:var(--bg-card);border:1px solid var(--border);border-radius:20px;padding:28px 22px;text-align:center;margin-bottom:18px;
+    box-shadow:0 2px 10px rgba(20,60,120,0.05);
+  }
+  .dial-freq{font-size:44px;font-weight:600;color:var(--blue);letter-spacing:1px;}
+  .dial-freq small{font-size:16px;color:var(--muted);margin-left:4px;}
+  .dial-name{font-size:14px;color:var(--muted);margin-top:2px;}
+  .play-btn{
+    margin-top:20px;width:64px;height:64px;border-radius:50%;border:none;background:var(--blue);
+    color:#fff;font-size:22px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
+    box-shadow:0 8px 24px rgba(37,99,235,0.3);
+  }
+  .play-btn:active{transform:scale(0.96);}
+
+  /* ---- Tab bar ---- */
+  .tabbar{
+    position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;
+    background:rgba(255,255,255,0.94);backdrop-filter:blur(10px);border-top:1px solid var(--border);
+    display:flex;padding:8px 4px calc(8px + env(safe-area-inset-bottom));z-index:20;
+  }
+  .tab{
+    flex:1;background:none;border:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;
+    gap:3px;padding:6px 2px;cursor:pointer;font-family:'Inter';font-size:9.5px;letter-spacing:0.2px;
+  }
+  .tab .ic{font-size:18px;}
+  .tab.active{color:var(--blue);}
+
+  /* ---- Forms / Admin ---- */
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
+  .field input, .field textarea, .field select{
+    width:100%;background:var(--bg-elevated);border:1px solid var(--border);border-radius:10px;
+    padding:11px 12px;color:var(--text);font-family:'Inter';font-size:14px;resize:vertical;
+  }
+  .field textarea{min-height:80px;}
+  .field input:focus, .field textarea:focus, .field select:focus{border-color:var(--blue);}
+  .field-hint{font-size:10.5px;color:var(--muted);margin-top:6px;line-height:1.4;}
+  .file-current{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:12.5px;}
+  .file-current a{color:var(--blue);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px;}
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    background:var(--blue);color:#fff;border:none;border-radius:10px;padding:12px 18px;
+    font-family:'Inter';font-weight:600;font-size:13.5px;cursor:pointer;width:100%;
+  }
+  .btn.secondary{background:var(--bg-elevated);color:var(--text);border:1px solid var(--border);}
+  .btn.danger{background:rgba(232,93,58,0.12);color:var(--coral);border:1px solid rgba(232,93,58,0.3);}
+  .row{display:flex;gap:8px;}
+  .row .btn{flex:1;}
+  .admin-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+  .pin-wrap{max-width:280px;margin:60px auto 0;text-align:center;}
+  .pin-wrap .ic-lock{font-size:30px;margin-bottom:14px;color:var(--blue);}
+  .adm-tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:18px;padding-bottom:4px;}
+  .adm-tabs button{
+    flex-shrink:0;background:var(--bg-card);border:1px solid var(--border);color:var(--muted);
+    padding:8px 13px;border-radius:20px;font-size:12px;cursor:pointer;
+  }
+  .adm-tabs button.active{background:var(--blue-soft);color:var(--blue);border-color:transparent;}
+  .item-row{display:flex;justify-content:space-between;align-items:center;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:11px 13px;margin-bottom:8px;}
+  .item-row .it{min-width:0;}
+  .item-row .it b{font-size:13.5px;display:block;}
+  .item-row .it span{font-size:11px;color:var(--muted);}
+  .item-row .acts{display:flex;gap:6px;flex-shrink:0;}
+  .icon-btn{background:var(--bg-elevated);border:1px solid var(--border);color:var(--muted);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:13px;}
+  .toast{
+    position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--text);
+    border:1px solid var(--blue);color:#fff;padding:10px 18px;border-radius:30px;font-size:12.5px;
+    z-index:50;opacity:0;pointer-events:none;transition:opacity 0.25s, transform 0.25s;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
+</style>
+</head>
+<body>
+<div id="shell">
+  <div class="topbar">
+    <div class="brand">
+      <div>
+        <div class="brand-name" id="hdrNom">EPEJ</div>
+        <div class="brand-sub" id="hdrSous">Église du Plein Évangile de Jésus-Christ</div>
+      </div>
+      <button class="admin-btn" onclick="go('admin')" aria-label="Espace administrateur">⚙︎</button>
+    </div>
+    <div class="tuner" onclick="go('radio')">
+      <div class="tuner-bars" id="tunerBars"><span></span><span></span><span></span><span></span><span></span></div>
+      <div class="tuner-info">
+        <div class="tuner-freq mono" id="tunerFreq">— FM</div>
+        <div class="tuner-name" id="tunerName">Radio non configurée</div>
+      </div>
+      <div class="tuner-status off-air" id="tunerStatus">HORS ANTENNE</div>
+    </div>
+  </div>
+
+  <main id="view"></main>
+
+  <nav class="tabbar">
+    <button class="tab" data-tab="accueil" onclick="go('accueil')"><span class="ic">⌂</span>Accueil</button>
+    <button class="tab" data-tab="cultes" onclick="go('cultes')"><span class="ic">🕊</span>Cultes</button>
+    <button class="tab" data-tab="messages" onclick="go('messages')"><span class="ic">📖</span>Messages</button>
+    <button class="tab" data-tab="prieres" onclick="go('prieres')"><span class="ic">🙏</span>Prières</button>
+    <button class="tab" data-tab="louange" onclick="go('louange')"><span class="ic">🎶</span>Louange</button>
+    <button class="tab" data-tab="radio" onclick="go('radio')"><span class="ic">📻</span>Radio</button>
+  </nav>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================== ÉTAT & STOCKAGE ===================== */
+const SECTIONS = {
+  cultes:   { label:'Cultes',            icon:'🕊', empty:"Aucun culte programmé pour le moment.",
+              fields:[ {k:'titre',l:'Titre du culte',t:'text',ph:'Culte de dimanche'},
+                       {k:'jour',l:'Jour',t:'text',ph:'Dimanche'},
+                       {k:'heure',l:'Heure',t:'text',ph:'10h00'},
+                       {k:'lieu',l:'Lieu',t:'text',ph:'Local principal'},
+                       {k:'description',l:'Description',t:'textarea',ph:'Détails du culte...'},
+                       {k:'fichier',l:'Affiche / programme (fichier)',t:'file'} ] },
+  messages: { label:'Messages',          icon:'📖', empty:"Aucun message publié pour le moment.",
+              fields:[ {k:'titre',l:'Titre du message',t:'text',ph:'La foi qui déplace les montagnes'},
+                       {k:'orateur',l:'Orateur',t:'text',ph:'Pasteur ...'},
+                       {k:'date',l:'Date',t:'text',ph:'12 juillet 2026'},
+                       {k:'lien',l:'Lien externe (YouTube, etc.)',t:'text',ph:'https://...'},
+                       {k:'description',l:'Résumé',t:'textarea',ph:'Résumé du message...'},
+                       {k:'fichier',l:'Fichier (vidéo, audio, Word, PDF...)',t:'file'} ] },
+  prieres:  { label:'Prières',           icon:'🙏', empty:"Aucun sujet de prière publié pour le moment.",
+              fields:[ {k:'titre',l:'Sujet de prière',t:'text',ph:'Pour les malades'},
+                       {k:'contenu',l:'Contenu',t:'textarea',ph:'Détail du sujet de prière...'},
+                       {k:'date',l:'Date',t:'text',ph:'Cette semaine'},
+                       {k:'fichier',l:'Fichier joint (image, PDF...)',t:'file'} ] },
+  louange:  { label:'Louange & Adoration', icon:'🎶', empty:"Aucun contenu de louange publié pour le moment.",
+              fields:[ {k:'titre',l:'Titre',t:'text',ph:'Titre du chant / thème'},
+                       {k:'auteur',l:'Auteur / Ministère',t:'text',ph:'Groupe de louange'},
+                       {k:'theme',l:'Thème',t:'text',ph:'Adoration, reconnaissance...'},
+                       {k:'lien',l:'Lien externe (YouTube, etc.)',t:'text',ph:'https://...'},
+                       {k:'fichier',l:'Fichier (audio, vidéo...)',t:'file'} ] },
+};
+
+let DATA = {
+  config: { nom:'EPEJ', sousTitre:'Église du Plein Évangile de Jésus-Christ', mission:'', vision:'',
+            radioNom:'', radioFrequence:'', radioFluxUrl:'', adminPin:'2026' },
+  cultes:[], messages:[], prieres:[], louange:[]
+};
+
+let current = 'accueil';
+let adminAuthed = false;
+let adminTab = 'general';
+let editing = null; // {section, id}
+let audioEl = null;
+let isPlaying = false;
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function esc(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function nl2br(s){ return esc(s).replace(/\n/g,'<br>'); }
+
+const EPEJ_COL = 'epej'; // collection Firestore — un document par section + un document "config"
+
+function loadAll(){
+  if(typeof db === 'undefined'){
+    toast("Firebase non configuré — voir firebase-config.js");
+    render();
+    return;
+  }
+  // Écoute en temps réel : dès qu'un admin publie, tous les visiteurs voient la mise à jour instantanément
+  db.collection(EPEJ_COL).doc('config').onSnapshot(snap=>{
+    if(snap.exists) DATA.config = Object.assign(DATA.config, snap.data());
+    renderHeader(); render();
+  }, ()=>toast("Connexion à la base impossible"));
+
+  Object.keys(SECTIONS).forEach(sec=>{
+    db.collection(EPEJ_COL).doc(sec).onSnapshot(snap=>{
+      DATA[sec] = (snap.exists && Array.isArray(snap.data().items)) ? snap.data().items : [];
+      renderHeader(); render();
+    }, ()=>toast("Connexion à la base impossible"));
+  });
+}
+async function saveConfig(){
+  try{ await db.collection(EPEJ_COL).doc('config').set(DATA.config); }
+  catch(e){ toast("Échec de l'enregistrement"); }
+}
+async function saveSection(sec){
+  try{ await db.collection(EPEJ_COL).doc(sec).set({items: DATA[sec]}); }
+  catch(e){ toast("Échec de l'enregistrement"); }
+}
+
+/* ===================== NAVIGATION ===================== */
+function go(tab){
+  current = tab;
+  if(tab !== 'admin'){ editing = null; }
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  window.scrollTo(0,0);
+  render();
+}
+function renderHeader(){
+  document.getElementById('hdrNom').textContent = DATA.config.nom || 'EPEJ';
+  document.getElementById('hdrSous').textContent = DATA.config.sousTitre || '';
+  document.getElementById('tunerFreq').textContent = (DATA.config.radioFrequence || '—') + ' FM';
+  document.getElementById('tunerName').textContent = DATA.config.radioNom || 'Radio non configurée';
+  const has = !!DATA.config.radioFluxUrl;
+  document.getElementById('tunerStatus').textContent = has ? 'EN DIRECT' : 'HORS ANTENNE';
+  document.getElementById('tunerStatus').className = 'tuner-status ' + (has ? 'on-air' : 'off-air');
+  document.getElementById('tunerBars').classList.toggle('live', isPlaying);
+}
+
+/* ===================== RENDU DES VUES PUBLIQUES ===================== */
+function render(){
+  const v = document.getElementById('view');
+  if(current==='accueil') v.innerHTML = viewAccueil();
+  else if(current==='radio') v.innerHTML = viewRadio();
+  else if(current==='admin') v.innerHTML = adminAuthed ? viewAdmin() : viewPin();
+  else if(SECTIONS[current]) v.innerHTML = viewListePublique(current);
+  renderHeader();
+}
+
+function viewAccueil(){
+  const c = DATA.config;
+  const total = Object.keys(SECTIONS).reduce((n,s)=>n+DATA[s].length,0);
+  return `
+    <div class="hero">
+      <div class="hero-eyebrow">Bienvenue</div>
+      <h1>${esc(c.nom)}</h1>
+      <p>${esc(c.sousTitre)}</p>
+      ${c.vision ? `<div class="hero-quote">“${esc(c.vision)}”</div>` : ''}
+    </div>
+    <div class="grid2">
+      <div class="stat"><b>${DATA.cultes.length}</b><span>Cultes</span></div>
+      <div class="stat"><b>${DATA.messages.length}</b><span>Messages</span></div>
+      <div class="stat"><b>${DATA.prieres.length}</b><span>Prières</span></div>
+      <div class="stat"><b>${DATA.louange.length}</b><span>Louange</span></div>
+    </div>
+    ${c.mission ? `
+    <div class="section-eyebrow">Notre mission</div>
+    <p class="section-lede" style="margin-bottom:22px">${nl2br(c.mission)}</p>` : ''}
+    <div class="section-eyebrow">À l'affiche</div>
+    ${prochainCulte()}
+  `;
+}
+function prochainCulte(){
+  if(!DATA.cultes.length) return `<div class="empty"><b>Rien de programmé</b>L'administrateur n'a pas encore publié de culte.</div>`;
+  const c = DATA.cultes[0];
+  return `<div class="card">
+      <div class="card-title">${esc(c.titre)}</div>
+      <div class="card-meta"><span>📅 ${esc(c.jour)}</span><span>🕐 ${esc(c.heure)}</span><span>📍 ${esc(c.lieu)}</span></div>
+      ${c.description ? `<div class="card-desc">${nl2br(c.description)}</div>` : ''}
+    </div>`;
+}
+
+function viewListePublique(sec){
+  const s = SECTIONS[sec];
+  const items = DATA[sec];
+  let html = `<div class="section-eyebrow">${s.icon} Espace</div><h2 class="section-title">${s.label}</h2>
+              <p class="section-lede">Contenus publiés par l'administration de ${esc(DATA.config.nom)}.</p>`;
+  if(!items.length){
+    html += `<div class="empty"><b>Rien à afficher</b>${esc(s.empty)}</div>`;
+    return html;
+  }
+  html += items.map(it=>{
+    const meta = s.fields.filter(f=>f.t==='text' && f.k!=='titre' && f.k!=='lien' && it[f.k]).map(f=>`<span>${esc(it[f.k])}</span>`).join('');
+    const desc = s.fields.find(f=>f.t==='textarea');
+    return `<div class="card">
+        <div class="card-title">${esc(it.titre)}</div>
+        ${meta ? `<div class="card-meta">${meta}</div>` : ''}
+        ${desc && it[desc.k] ? `<div class="card-desc">${nl2br(it[desc.k])}</div>` : ''}
+        ${it.lien ? `<a class="card-link" href="${esc(it.lien)}" target="_blank" rel="noopener">Ouvrir le lien ↗</a>` : ''}
+        ${renderFichier(it.fichier)}
+      </div>`;
+  }).join('');
+  return html;
+}
+function renderFichier(f){
+  if(!f || !f.url) return '';
+  const type = f.type || '';
+  if(type.startsWith('image/')) return `<img src="${esc(f.url)}" alt="${esc(f.nom||'')}" style="width:100%;border-radius:12px;margin-top:10px;display:block;">`;
+  if(type.startsWith('video/')) return `<video src="${esc(f.url)}" controls style="width:100%;border-radius:12px;margin-top:10px;"></video>`;
+  if(type.startsWith('audio/')) return `<audio src="${esc(f.url)}" controls style="width:100%;margin-top:10px;"></audio>`;
+  return `<a class="card-link" href="${esc(f.url)}" target="_blank" rel="noopener">📎 ${esc(f.nom||'Télécharger le fichier')} ↗</a>`;
+}
+
+function viewRadio(){
+  const c = DATA.config;
+  const has = !!c.radioFluxUrl;
+  return `
+    <div class="section-eyebrow">📻 Diffusion</div>
+    <h2 class="section-title">Radio ${esc(c.nom)}</h2>
+    <p class="section-lede">Écoutez la radio de l'église en direct, où que vous soyez.</p>
+    <div class="dial">
+      <div class="dial-freq mono">${esc(c.radioFrequence || '—')}<small>FM</small></div>
+      <div class="dial-name">${esc(c.radioNom || 'Radio non configurée')}</div>
+      <button class="play-btn" id="playBtn" onclick="toggleRadio()" ${has ? '' : 'disabled style="opacity:0.4;cursor:not-allowed"'}>${isPlaying ? '❚❚' : '▶'}</button>
+    </div>
+    ${!has ? `<div class="empty"><b>Flux non configuré</b>L'administrateur n'a pas encore renseigné l'adresse du flux radio.</div>` : ''}
+  `;
+}
+function toggleRadio(){
+  const url = DATA.config.radioFluxUrl;
+  if(!url) return;
+  if(!audioEl){ audioEl = new Audio(url); audioEl.addEventListener('ended', ()=>{isPlaying=false; render();}); }
+  if(isPlaying){ audioEl.pause(); isPlaying=false; }
+  else{ audioEl.play().catch(()=>toast("Impossible de lire le flux radio")); isPlaying=true; }
+  render();
+}
+
+/* ===================== ADMIN ===================== */
+function viewPin(){
+  return `
+    <div class="pin-wrap">
+      <div class="ic-lock">🔒</div>
+      <h2 class="section-title" style="text-align:center">Espace administrateur</h2>
+      <p class="section-lede" style="text-align:center">Entrez le code d'accès pour gérer les contenus de l'application.</p>
+      <div class="field"><input type="password" inputmode="numeric" id="pinInput" placeholder="Code d'accès" onkeydown="if(event.key==='Enter')checkPin()"></div>
+      <button class="btn" onclick="checkPin()">Entrer</button>
+      <button class="btn secondary" style="margin-top:8px" onclick="go('accueil')">Retour</button>
+    </div>`;
+}
+function checkPin(){
+  const val = document.getElementById('pinInput').value;
+  if(val === DATA.config.adminPin){ adminAuthed = true; adminTab='general'; render(); }
+  else toast('Code incorrect');
+}
+function viewAdmin(){
+  let body = '';
+  if(adminTab==='general') body = adminGeneral();
+  else body = adminCrud(adminTab);
+  return `
+    <div class="admin-header">
+      <h2 class="section-title" style="margin:0">Administration</h2>
+      <button class="icon-btn" onclick="adminAuthed=false;go('accueil')" title="Se déconnecter">⏻</button>
+    </div>
+    <div class="adm-tabs">
+      <button class="${adminTab==='general'?'active':''}" onclick="adminTab='general';render()">Général</button>
+      ${Object.keys(SECTIONS).map(s=>`<button class="${adminTab===s?'active':''}" onclick="adminTab='${s}';editing=null;render()">${SECTIONS[s].label}</button>`).join('')}
+    </div>
+    ${body}
+  `;
+}
+function adminGeneral(){
+  const c = DATA.config;
+  return `
+    <div class="section-eyebrow">Identité & radio</div>
+    <div class="field"><label>Nom de l'église</label><input id="f_nom" value="${esc(c.nom)}"></div>
+    <div class="field"><label>Sous-titre</label><input id="f_sousTitre" value="${esc(c.sousTitre)}"></div>
+    <div class="field"><label>Mission</label><textarea id="f_mission" placeholder="La mission de l'église...">${esc(c.mission)}</textarea></div>
+    <div class="field"><label>Vision</label><textarea id="f_vision" placeholder="La vision de l'église...">${esc(c.vision)}</textarea></div>
+    <div class="field"><label>Nom de la radio</label><input id="f_radioNom" value="${esc(c.radioNom)}" placeholder="Radio EPEJ"></div>
+    <div class="field"><label>Fréquence (ex: 101.5)</label><input id="f_radioFrequence" value="${esc(c.radioFrequence)}" placeholder="101.5"></div>
+    <div class="field"><label>URL du flux audio en direct</label><input id="f_radioFluxUrl" value="${esc(c.radioFluxUrl)}" placeholder="https://.../stream.mp3"></div>
+    <div class="field"><label>Code d'accès admin</label><input id="f_adminPin" value="${esc(c.adminPin)}"></div>
+    <button class="btn" onclick="saveGeneral()">Enregistrer les modifications</button>
+  `;
+}
+async function saveGeneral(){
+  DATA.config.nom = document.getElementById('f_nom').value.trim() || 'EPEJ';
+  DATA.config.sousTitre = document.getElementById('f_sousTitre').value.trim();
+  DATA.config.mission = document.getElementById('f_mission').value.trim();
+  DATA.config.vision = document.getElementById('f_vision').value.trim();
+  DATA.config.radioNom = document.getElementById('f_radioNom').value.trim();
+  DATA.config.radioFrequence = document.getElementById('f_radioFrequence').value.trim();
+  DATA.config.radioFluxUrl = document.getElementById('f_radioFluxUrl').value.trim();
+  DATA.config.adminPin = document.getElementById('f_adminPin').value.trim() || '2026';
+  await saveConfig();
+  toast('Informations enregistrées');
+  render();
+}
+
+function adminCrud(sec){
+  const s = SECTIONS[sec];
+  const items = DATA[sec];
+  if(editing && editing.section===sec) return adminForm(sec);
+  let html = `<button class="btn" style="margin-bottom:16px" onclick="editing={section:'${sec}',id:null};render()">+ Ajouter — ${s.label}</button>`;
+  if(!items.length){
+    html += `<div class="empty"><b>Aucun contenu</b>Ajoutez le premier élément de ${esc(s.label).toLowerCase()}.</div>`;
+    return html;
+  }
+  html += items.map(it=>`
+    <div class="item-row">
+      <div class="it"><b>${esc(it.titre)}</b><span>${esc(it[s.fields[1] ? s.fields[1].k : 'titre']||'')}</span></div>
+      <div class="acts">
+        <button class="icon-btn" onclick="editing={section:'${sec}',id:'${it.id}'};render()" title="Modifier">✎</button>
+        <button class="icon-btn" onclick="deleteItem('${sec}','${it.id}')" title="Supprimer">🗑</button>
+      </div>
+    </div>`).join('');
+  return html;
+}
+function adminForm(sec){
+  const s = SECTIONS[sec];
+  const item = editing.id ? DATA[sec].find(x=>x.id===editing.id) : {};
+  const fieldsHtml = s.fields.map(f=>{
+    if(f.t==='file') return fileFieldHtml(sec,f,item);
+    const val = esc(item[f.k]||'');
+    if(f.t==='textarea') return `<div class="field"><label>${f.l}</label><textarea id="ff_${f.k}" placeholder="${esc(f.ph||'')}">${val}</textarea></div>`;
+    return `<div class="field"><label>${f.l}</label><input id="ff_${f.k}" value="${val}" placeholder="${esc(f.ph||'')}"></div>`;
+  }).join('');
+  return `
+    <h3 style="margin:0 0 14px">${editing.id ? 'Modifier' : 'Ajouter'} — ${s.label}</h3>
+    ${fieldsHtml}
+    <div class="row">
+      <button class="btn secondary" onclick="editing=null;render()">Annuler</button>
+      <button class="btn" onclick="submitForm('${sec}')">Enregistrer</button>
+    </div>
+  `;
+}
+function fileFieldHtml(sec, f, item){
+  const current = item && item[f.k];
+  let html = `<div class="field"><label>${f.l}</label>`;
+  if(current && current.url){
+    html += `<div class="file-current"><a href="${esc(current.url)}" target="_blank" rel="noopener">📎 ${esc(current.nom||'Fichier actuel')}</a><button type="button" class="icon-btn" onclick="clearFile('${sec}','${f.k}')" title="Retirer le fichier">✕</button></div>`;
+  }
+  html += `<input type="file" id="ff_${f.k}" accept="image/*,video/*,audio/*,.pdf,.doc,.docx">`;
+  html += `<div class="field-hint">Images, PDF, Word ou audio/vidéo courte (quelques dizaines de Mo). Pour une vidéo longue, préfère un lien YouTube ci-dessus.</div>`;
+  html += `</div>`;
+  return html;
+}
+function clearFile(sec, key){
+  if(!editing || !editing.id) return;
+  const item = DATA[sec].find(x=>x.id===editing.id);
+  if(item) item[key] = null;
+  render();
+}
+async function submitForm(sec){
+  const s = SECTIONS[sec];
+  const titreField = document.getElementById('ff_titre');
+  if(titreField && !titreField.value.trim()){ toast('Le titre est requis'); return; }
+  const obj = editing.id ? DATA[sec].find(x=>x.id===editing.id) : {id:uid()};
+  s.fields.forEach(f=>{
+    if(f.t==='file') return;
+    obj[f.k] = document.getElementById('ff_'+f.k).value.trim();
+  });
+  const fileFields = s.fields.filter(f=>f.t==='file');
+  for(const f of fileFields){
+    const inp = document.getElementById('ff_'+f.k);
+    if(inp && inp.files && inp.files[0]){
+      const file = inp.files[0];
+      toast('Envoi du fichier en cours…');
+      try{
+        const path = `epej/${sec}/${obj.id}/${Date.now()}_${file.name}`;
+        const ref = storage.ref().child(path);
+        await ref.put(file);
+        const url = await ref.getDownloadURL();
+        obj[f.k] = { url, nom: file.name, type: file.type };
+      }catch(e){
+        toast("Échec de l'envoi du fichier");
+        return;
+      }
+    }
+  }
+  if(!editing.id) DATA[sec].push(obj);
+  await saveSection(sec);
+  toast(editing.id ? 'Modifications enregistrées' : 'Élément ajouté');
+  editing = null;
+  render();
+}
+async function deleteItem(sec,id){
+  DATA[sec] = DATA[sec].filter(x=>x.id!==id);
+  await saveSection(sec);
+  toast('Élément supprimé');
+  render();
+}
+
+/* ===================== INIT ===================== */
+loadAll();
+document.querySelector('.tab[data-tab="accueil"]').classList.add('active');
+</script>
+</body>
+</html>
