@@ -6,11 +6,8 @@
 <title>EPEJ — Église du Plein Évangile de Jésus-Christ</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<!-- Firebase (base de données partagée en temps réel) -->
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
-<script src="firebase-config.js"></script>
+<!-- Configuration du dépôt GitHub (sert de base de données) -->
+<script src="site-config.js"></script>
 <style>
   :root{
     --bg:#EAF2FF;
@@ -53,6 +50,8 @@
     color:#fff;
   }
   .brand{display:flex;align-items:baseline;justify-content:space-between;gap:8px;}
+  .brand-left{display:flex;align-items:center;gap:10px;}
+  .brand-logo{width:38px;height:38px;border-radius:10px;object-fit:cover;background:rgba(255,255,255,0.16);border:1px solid rgba(255,255,255,0.3);}
   .brand-name{font-size:22px;font-weight:600;letter-spacing:0.5px;color:#fff;}
   .brand-sub{font-size:11.5px;color:rgba(255,255,255,0.78);margin-top:2px;line-height:1.4;}
   .admin-btn{
@@ -123,6 +122,11 @@
   .stat{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:14px;}
   .stat b{display:block;font-size:20px;font-family:'IBM Plex Mono',monospace;color:var(--blue);}
   .stat span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;}
+
+  .gallery-scroll{display:flex;gap:10px;overflow-x:auto;margin-bottom:22px;padding-bottom:4px;-webkit-overflow-scrolling:touch;}
+  .gallery-item{flex-shrink:0;width:140px;}
+  .gallery-item img{width:140px;height:100px;object-fit:cover;border-radius:12px;display:block;}
+  .gallery-item span{display:block;font-size:11px;color:var(--muted);margin-top:6px;}
 
   /* ---- Radio player ---- */
   .dial{
@@ -200,9 +204,12 @@
 <div id="shell">
   <div class="topbar">
     <div class="brand">
-      <div>
-        <div class="brand-name" id="hdrNom">EPEJ</div>
-        <div class="brand-sub" id="hdrSous">Église du Plein Évangile de Jésus-Christ</div>
+      <div class="brand-left">
+        <img id="hdrLogo" class="brand-logo" style="display:none" alt="Logo">
+        <div>
+          <div class="brand-name" id="hdrNom">EPEJ</div>
+          <div class="brand-sub" id="hdrSous">Église du Plein Évangile de Jésus-Christ</div>
+        </div>
       </div>
       <button class="admin-btn" onclick="go('admin')" aria-label="Espace administrateur">⚙︎</button>
     </div>
@@ -257,12 +264,16 @@ const SECTIONS = {
                        {k:'theme',l:'Thème',t:'text',ph:'Adoration, reconnaissance...'},
                        {k:'lien',l:'Lien externe (YouTube, etc.)',t:'text',ph:'https://...'},
                        {k:'fichier',l:'Fichier (audio, vidéo...)',t:'file'} ] },
+  galerie:  { label:'Galerie (accueil)', icon:'🖼', empty:"Aucune photo ajoutée pour le moment.",
+              fields:[ {k:'titre',l:'Légende (optionnel)',t:'text',ph:'Culte du dimanche'},
+                       {k:'fichier',l:'Photo',t:'file'} ] },
 };
 
 let DATA = {
   config: { nom:'EPEJ', sousTitre:'Église du Plein Évangile de Jésus-Christ', mission:'', vision:'',
-            radioNom:'', radioFrequence:'', radioFluxUrl:'', adminPin:'2026' },
-  cultes:[], messages:[], prieres:[], louange:[]
+            radioNom:'', radioFrequence:'', radioFluxUrl:'', logo:null,
+            adresse:'', telephone:'', email:'', facebook:'', youtube:'' },
+  cultes:[], messages:[], prieres:[], louange:[], galerie:[]
 };
 
 let current = 'accueil';
@@ -281,34 +292,64 @@ function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(
 function esc(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function nl2br(s){ return esc(s).replace(/\n/g,'<br>'); }
 
-const EPEJ_COL = 'epej'; // collection Firestore — un document par section + un document "config"
+/* ===================== STOCKAGE — DÉPÔT GITHUB ===================== */
+const GH_API = 'https://api.github.com';
 
-function loadAll(){
-  if(typeof db === 'undefined'){
-    toast("Firebase non configuré — voir firebase-config.js");
-    render();
-    return;
-  }
-  // Écoute en temps réel : dès qu'un admin publie, tous les visiteurs voient la mise à jour instantanément
-  db.collection(EPEJ_COL).doc('config').onSnapshot(snap=>{
-    if(snap.exists) DATA.config = Object.assign(DATA.config, snap.data());
-    renderHeader(); render();
-  }, ()=>toast("Connexion à la base impossible"));
-
-  Object.keys(SECTIONS).forEach(sec=>{
-    db.collection(EPEJ_COL).doc(sec).onSnapshot(snap=>{
-      DATA[sec] = (snap.exists && Array.isArray(snap.data().items)) ? snap.data().items : [];
-      renderHeader(); render();
-    }, ()=>toast("Connexion à la base impossible"));
+function ghToken(){ return localStorage.getItem('epej_gh_token') || ''; }
+function ghHeaders(){ return { 'Authorization': 'token '+ghToken(), 'Accept':'application/vnd.github+json' }; }
+function rawUrl(path){
+  return `https://raw.githubusercontent.com/${GITHUB_REPO.owner}/${GITHUB_REPO.repo}/${GITHUB_REPO.branch}/${path}`;
+}
+function b64Encode(str){ return btoa(unescape(encodeURIComponent(str))); }
+function fileToBase64(file){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=> resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
   });
 }
+async function ghGetFile(path){
+  const res = await fetch(`${GH_API}/repos/${GITHUB_REPO.owner}/${GITHUB_REPO.repo}/contents/${path}?ref=${GITHUB_REPO.branch}`, { headers: ghHeaders() });
+  if(res.status===404) return null;
+  if(!res.ok) throw new Error('Erreur API GitHub');
+  return res.json();
+}
+async function ghPutFile(path, contentBase64, message, sha){
+  const body = { message, content: contentBase64, branch: GITHUB_REPO.branch };
+  if(sha) body.sha = sha;
+  const res = await fetch(`${GH_API}/repos/${GITHUB_REPO.owner}/${GITHUB_REPO.repo}/contents/${path}`, {
+    method:'PUT', headers: Object.assign({'Content-Type':'application/json'}, ghHeaders()), body: JSON.stringify(body)
+  });
+  if(!res.ok) throw new Error('Échec de l\'enregistrement sur GitHub');
+  return res.json();
+}
+
+async function loadAll(){
+  try{
+    const cfg = await fetch(rawUrl('data/config.json')+'?t='+Date.now()).then(r=> r.ok ? r.json() : null);
+    if(cfg) DATA.config = Object.assign(DATA.config, cfg);
+  }catch(e){}
+  for(const sec of Object.keys(SECTIONS)){
+    try{
+      const arr = await fetch(rawUrl(`data/${sec}.json`)+'?t='+Date.now()).then(r=> r.ok ? r.json() : []);
+      DATA[sec] = Array.isArray(arr) ? arr : [];
+    }catch(e){ DATA[sec] = []; }
+  }
+  renderHeader();
+  render();
+}
 async function saveConfig(){
-  try{ await db.collection(EPEJ_COL).doc('config').set(DATA.config); }
-  catch(e){ toast("Échec de l'enregistrement"); }
+  try{
+    const existing = await ghGetFile('data/config.json');
+    await ghPutFile('data/config.json', b64Encode(JSON.stringify(DATA.config, null, 2)), 'Mise à jour des informations générales', existing ? existing.sha : undefined);
+  }catch(e){ toast("Échec de l'enregistrement — vérifie ton jeton d'accès"); }
 }
 async function saveSection(sec){
-  try{ await db.collection(EPEJ_COL).doc(sec).set({items: DATA[sec]}); }
-  catch(e){ toast("Échec de l'enregistrement"); }
+  try{
+    const existing = await ghGetFile(`data/${sec}.json`);
+    await ghPutFile(`data/${sec}.json`, b64Encode(JSON.stringify(DATA[sec], null, 2)), `Mise à jour — ${sec}`, existing ? existing.sha : undefined);
+  }catch(e){ toast("Échec de l'enregistrement — vérifie ton jeton d'accès"); }
 }
 
 /* ===================== NAVIGATION ===================== */
@@ -322,6 +363,9 @@ function go(tab){
 function renderHeader(){
   document.getElementById('hdrNom').textContent = DATA.config.nom || 'EPEJ';
   document.getElementById('hdrSous').textContent = DATA.config.sousTitre || '';
+  const logoEl = document.getElementById('hdrLogo');
+  if(DATA.config.logo && DATA.config.logo.url){ logoEl.src = DATA.config.logo.url; logoEl.style.display='block'; }
+  else{ logoEl.style.display='none'; }
   document.getElementById('tunerFreq').textContent = (DATA.config.radioFrequence || '—') + ' FM';
   document.getElementById('tunerName').textContent = DATA.config.radioNom || 'Radio non configurée';
   const has = !!DATA.config.radioFluxUrl;
@@ -350,6 +394,7 @@ function viewAccueil(){
       <p>${esc(c.sousTitre)}</p>
       ${c.vision ? `<div class="hero-quote">“${esc(c.vision)}”</div>` : ''}
     </div>
+    ${galerieAccueil()}
     <div class="grid2">
       <div class="stat"><b>${DATA.cultes.length}</b><span>Cultes</span></div>
       <div class="stat"><b>${DATA.messages.length}</b><span>Messages</span></div>
@@ -361,7 +406,32 @@ function viewAccueil(){
     <p class="section-lede" style="margin-bottom:22px">${nl2br(c.mission)}</p>` : ''}
     <div class="section-eyebrow">À l'affiche</div>
     ${prochainCulte()}
+    ${contactCard()}
   `;
+}
+function galerieAccueil(){
+  if(!DATA.galerie || !DATA.galerie.length) return '';
+  return `<div class="section-eyebrow">📷 Galerie</div>
+    <div class="gallery-scroll">
+      ${DATA.galerie.filter(g=>g.fichier && g.fichier.url).map(g=>
+        `<div class="gallery-item"><img src="${esc(g.fichier.url)}" alt="${esc(g.titre||'')}">${g.titre?`<span>${esc(g.titre)}</span>`:''}</div>`
+      ).join('')}
+    </div>`;
+}
+function contactCard(){
+  const c = DATA.config;
+  if(!c.adresse && !c.telephone && !c.email && !c.facebook && !c.youtube) return '';
+  return `
+    <div class="section-eyebrow" style="margin-top:22px">📍 Nous contacter</div>
+    <div class="card">
+      ${c.adresse ? `<div class="card-desc">📍 ${esc(c.adresse)}</div>` : ''}
+      ${c.telephone ? `<div class="card-desc">📞 ${esc(c.telephone)}</div>` : ''}
+      ${c.email ? `<div class="card-desc">✉️ ${esc(c.email)}</div>` : ''}
+      ${(c.facebook || c.youtube) ? `<div style="margin-top:8px;display:flex;gap:14px;">
+        ${c.facebook ? `<a class="card-link" href="${esc(c.facebook)}" target="_blank" rel="noopener">Facebook ↗</a>` : ''}
+        ${c.youtube ? `<a class="card-link" href="${esc(c.youtube)}" target="_blank" rel="noopener">YouTube ↗</a>` : ''}
+      </div>` : ''}
+    </div>`;
 }
 function prochainCulte(){
   if(!DATA.cultes.length) return `<div class="empty"><b>Rien de programmé</b>L'administrateur n'a pas encore publié de culte.</div>`;
@@ -434,16 +504,24 @@ function viewPin(){
     <div class="pin-wrap">
       <div class="ic-lock">🔒</div>
       <h2 class="section-title" style="text-align:center">Espace administrateur</h2>
-      <p class="section-lede" style="text-align:center">Entrez le code d'accès pour gérer les contenus de l'application.</p>
-      <div class="field"><input type="password" inputmode="numeric" id="pinInput" placeholder="Code d'accès" onkeydown="if(event.key==='Enter')checkPin()"></div>
+      <p class="section-lede" style="text-align:center">Colle ton jeton d'accès GitHub (voir le README) pour publier des contenus.</p>
+      <div class="field"><input type="password" id="pinInput" placeholder="ghp_xxxxxxxxxxxxxxxx" onkeydown="if(event.key==='Enter')checkPin()"></div>
       <button class="btn" onclick="checkPin()">Entrer</button>
       <button class="btn secondary" style="margin-top:8px" onclick="go('accueil')">Retour</button>
     </div>`;
 }
-function checkPin(){
-  const val = document.getElementById('pinInput').value;
-  if(val === DATA.config.adminPin){ adminAuthed = true; adminTab='general'; render(); }
-  else toast('Code incorrect');
+async function checkPin(){
+  const val = document.getElementById('pinInput').value.trim();
+  if(!val){ toast('Jeton requis'); return; }
+  localStorage.setItem('epej_gh_token', val);
+  try{
+    const res = await fetch(`${GH_API}/repos/${GITHUB_REPO.owner}/${GITHUB_REPO.repo}`, { headers: ghHeaders() });
+    if(!res.ok) throw new Error();
+    adminAuthed = true; adminTab='general'; render();
+  }catch(e){
+    localStorage.removeItem('epej_gh_token');
+    toast('Jeton invalide ou dépôt inaccessible');
+  }
 }
 function viewAdmin(){
   let body = '';
@@ -452,7 +530,7 @@ function viewAdmin(){
   return `
     <div class="admin-header">
       <h2 class="section-title" style="margin:0">Administration</h2>
-      <button class="icon-btn" onclick="adminAuthed=false;go('accueil')" title="Se déconnecter">⏻</button>
+      <button class="icon-btn" onclick="adminAuthed=false;localStorage.removeItem('epej_gh_token');go('accueil')" title="Se déconnecter">⏻</button>
     </div>
     <div class="adm-tabs">
       <button class="${adminTab==='general'?'active':''}" onclick="adminTab='general';render()">Général</button>
@@ -465,6 +543,7 @@ function adminGeneral(){
   const c = DATA.config;
   return `
     <div class="section-eyebrow">Identité & radio</div>
+    ${fileFieldConfigHtml('logo','Logo de l\'église','Format carré recommandé, 1 Mo maximum.')}
     <div class="field"><label>Nom de l'église</label><input id="f_nom" value="${esc(c.nom)}"></div>
     <div class="field"><label>Sous-titre</label><input id="f_sousTitre" value="${esc(c.sousTitre)}"></div>
     <div class="field"><label>Mission</label><textarea id="f_mission" placeholder="La mission de l'église...">${esc(c.mission)}</textarea></div>
@@ -472,10 +551,27 @@ function adminGeneral(){
     <div class="field"><label>Nom de la radio</label><input id="f_radioNom" value="${esc(c.radioNom)}" placeholder="Radio EPEJ"></div>
     <div class="field"><label>Fréquence (ex: 101.5)</label><input id="f_radioFrequence" value="${esc(c.radioFrequence)}" placeholder="101.5"></div>
     <div class="field"><label>URL du flux audio en direct</label><input id="f_radioFluxUrl" value="${esc(c.radioFluxUrl)}" placeholder="https://.../stream.mp3"></div>
-    <div class="field"><label>Code d'accès admin</label><input id="f_adminPin" value="${esc(c.adminPin)}"></div>
+    <div class="section-eyebrow" style="margin-top:22px">Coordonnées (affichées sur l'accueil)</div>
+    <div class="field"><label>Adresse</label><input id="f_adresse" value="${esc(c.adresse)}" placeholder="Adresse du local principal"></div>
+    <div class="field"><label>Téléphone</label><input id="f_telephone" value="${esc(c.telephone)}" placeholder="+229 ..."></div>
+    <div class="field"><label>E-mail</label><input id="f_email" value="${esc(c.email)}" placeholder="contact@..."></div>
+    <div class="field"><label>Lien Facebook</label><input id="f_facebook" value="${esc(c.facebook)}" placeholder="https://facebook.com/..."></div>
+    <div class="field"><label>Lien YouTube</label><input id="f_youtube" value="${esc(c.youtube)}" placeholder="https://youtube.com/..."></div>
     <button class="btn" onclick="saveGeneral()">Enregistrer les modifications</button>
   `;
 }
+function fileFieldConfigHtml(key, label, hint){
+  const current = DATA.config[key];
+  let html = `<div class="field"><label>${label}</label>`;
+  if(current && current.url){
+    html += `<div class="file-current"><a href="${esc(current.url)}" target="_blank" rel="noopener">📎 ${esc(current.nom||'Fichier actuel')}</a><button type="button" class="icon-btn" onclick="clearConfigFile('${key}')" title="Retirer">✕</button></div>`;
+  }
+  html += `<input type="file" id="cf_${key}" accept="image/*">`;
+  html += `<div class="field-hint">${hint||'Image — 1 Mo maximum.'}</div>`;
+  html += `</div>`;
+  return html;
+}
+function clearConfigFile(key){ DATA.config[key] = null; render(); }
 async function saveGeneral(){
   DATA.config.nom = document.getElementById('f_nom').value.trim() || 'EPEJ';
   DATA.config.sousTitre = document.getElementById('f_sousTitre').value.trim();
@@ -484,7 +580,25 @@ async function saveGeneral(){
   DATA.config.radioNom = document.getElementById('f_radioNom').value.trim();
   DATA.config.radioFrequence = document.getElementById('f_radioFrequence').value.trim();
   DATA.config.radioFluxUrl = document.getElementById('f_radioFluxUrl').value.trim();
-  DATA.config.adminPin = document.getElementById('f_adminPin').value.trim() || '2026';
+  DATA.config.adresse = document.getElementById('f_adresse').value.trim();
+  DATA.config.telephone = document.getElementById('f_telephone').value.trim();
+  DATA.config.email = document.getElementById('f_email').value.trim();
+  DATA.config.facebook = document.getElementById('f_facebook').value.trim();
+  DATA.config.youtube = document.getElementById('f_youtube').value.trim();
+  const logoInp = document.getElementById('cf_logo');
+  if(logoInp && logoInp.files && logoInp.files[0]){
+    const file = logoInp.files[0];
+    if(file.size > 1000000){ toast('Logo trop lourd (max 1 Mo)'); return; }
+    toast('Envoi du logo en cours…');
+    try{
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+      const path = `uploads/config/logo_${safeName}`;
+      const contentB64 = await fileToBase64(file);
+      const existing = await ghGetFile(path);
+      await ghPutFile(path, contentB64, 'Mise à jour du logo', existing ? existing.sha : undefined);
+      DATA.config.logo = { url: rawUrl(path), nom: file.name, type: file.type };
+    }catch(e){ toast("Échec de l'envoi du logo"); return; }
+  }
   await saveConfig();
   toast('Informations enregistrées');
   render();
@@ -499,14 +613,18 @@ function adminCrud(sec){
     html += `<div class="empty"><b>Aucun contenu</b>Ajoutez le premier élément de ${esc(s.label).toLowerCase()}.</div>`;
     return html;
   }
-  html += items.map(it=>`
+  html += items.map(it=>{
+    const subField = s.fields.find(f=>f.k!=='titre' && f.t!=='file');
+    const subText = subField ? (it[subField.k]||'') : (it.fichier && it.fichier.nom ? '📎 '+it.fichier.nom : '');
+    return `
     <div class="item-row">
-      <div class="it"><b>${esc(it.titre)}</b><span>${esc(it[s.fields[1] ? s.fields[1].k : 'titre']||'')}</span></div>
+      <div class="it"><b>${esc(it.titre)}</b><span>${esc(subText)}</span></div>
       <div class="acts">
         <button class="icon-btn" onclick="editing={section:'${sec}',id:'${it.id}'};render()" title="Modifier">✎</button>
         <button class="icon-btn" onclick="deleteItem('${sec}','${it.id}')" title="Supprimer">🗑</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   return html;
 }
 function adminForm(sec){
@@ -534,7 +652,7 @@ function fileFieldHtml(sec, f, item){
     html += `<div class="file-current"><a href="${esc(current.url)}" target="_blank" rel="noopener">📎 ${esc(current.nom||'Fichier actuel')}</a><button type="button" class="icon-btn" onclick="clearFile('${sec}','${f.k}')" title="Retirer le fichier">✕</button></div>`;
   }
   html += `<input type="file" id="ff_${f.k}" accept="image/*,video/*,audio/*,.pdf,.doc,.docx">`;
-  html += `<div class="field-hint">Images, PDF, Word ou audio/vidéo courte (quelques dizaines de Mo). Pour une vidéo longue, préfère un lien YouTube ci-dessus.</div>`;
+  html += `<div class="field-hint">Images, PDF, Word ou courts audio/vidéo — 1 Mo maximum (limite de GitHub). Pour un fichier plus lourd : dépose-le manuellement dans le dossier "uploads" sur GitHub.com, puis colle son nom exact ci-dessus à la place de choisir un fichier. Pour une vidéo longue, utilise plutôt un lien YouTube.</div>`;
   html += `</div>`;
   return html;
 }
@@ -558,15 +676,20 @@ async function submitForm(sec){
     const inp = document.getElementById('ff_'+f.k);
     if(inp && inp.files && inp.files[0]){
       const file = inp.files[0];
+      if(file.size > 1000000){
+        toast('Fichier trop lourd (max 1 Mo) — voir la note sous le champ');
+        return;
+      }
       toast('Envoi du fichier en cours…');
       try{
-        const path = `epej/${sec}/${obj.id}/${Date.now()}_${file.name}`;
-        const ref = storage.ref().child(path);
-        await ref.put(file);
-        const url = await ref.getDownloadURL();
-        obj[f.k] = { url, nom: file.name, type: file.type };
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+        const path = `uploads/${sec}/${obj.id}/${safeName}`;
+        const contentB64 = await fileToBase64(file);
+        const existing = await ghGetFile(path);
+        await ghPutFile(path, contentB64, `Ajout fichier — ${file.name}`, existing ? existing.sha : undefined);
+        obj[f.k] = { url: rawUrl(path), nom: file.name, type: file.type };
       }catch(e){
-        toast("Échec de l'envoi du fichier");
+        toast("Échec de l'envoi du fichier — vérifie ton jeton d'accès");
         return;
       }
     }
