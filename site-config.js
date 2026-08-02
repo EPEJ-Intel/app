@@ -7,7 +7,7 @@
 // visibles dans ce fichier public.
 // ============================================================
 const GITHUB_REPO = {
-  owner: "epej-intel",   // ton nom d'utilisateur ou d'organisation GitHub
+  owner: "EPEJ-intel",   // ton nom d'utilisateur ou d'organisation GitHub
   repo: "app",           // le nom du dépôt
   branch: "main"         // la branche utilisée (généralement "main")
 };
