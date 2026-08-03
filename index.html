@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>EPEJ — Église du Plein Évangile de Jésus-Christ</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2563EB">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="EPEJ">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Configuration du dépôt GitHub (sert de base de données) -->
@@ -18,9 +26,12 @@
     --blue-deep:#1741A6;
     --blue-soft:rgba(37,99,235,0.10);
     --coral:#E85D3A;
+    --amber:#C6902A;
+    --amber-soft:rgba(198,144,42,0.12);
     --text:#0F2044;
     --muted:#5B7699;
     --radius:16px;
+    --oil:linear-gradient(120deg, #123A9E 0%, #2154E8 18%, #6D3AE0 42%, #1FA8B0 68%, #123A9E 100%);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;height:100%;background:var(--bg);}
@@ -46,9 +57,12 @@
   .topbar{
     padding:22px 20px 18px;
     position:sticky;top:0;z-index:20;
-    background:linear-gradient(135deg, var(--blue) 0%, var(--blue-deep) 100%);
+    background-image:radial-gradient(circle, rgba(255,255,255,0.14) 1px, transparent 1px), var(--oil);
+    background-size:16px 16px, 260% 260%;
+    animation:oilShift 16s ease-in-out infinite alternate;
     color:#fff;
   }
+  @keyframes oilShift{0%{background-position:0 0, 0% 50%;}100%{background-position:0 0, 100% 50%;}}
   .brand{display:flex;align-items:baseline;justify-content:space-between;gap:8px;}
   .brand-left{display:flex;align-items:center;gap:10px;}
   .brand-logo{width:38px;height:38px;border-radius:10px;object-fit:cover;background:rgba(255,255,255,0.16);border:1px solid rgba(255,255,255,0.3);}
@@ -105,9 +119,12 @@
   .empty b{color:var(--text);display:block;font-family:'Fraunces',serif;font-size:17px;font-weight:600;margin-bottom:6px;}
 
   .hero{
-    border-radius:var(--radius);padding:24px 20px;margin-bottom:22px;
-    background:linear-gradient(160deg, var(--blue) 0%, var(--blue-deep) 100%);
+    border-radius:var(--radius);padding:24px 20px;margin-bottom:18px;
+    background-image:radial-gradient(circle, rgba(255,255,255,0.10) 1px, transparent 1px), var(--oil);
+    background-size:14px 14px, 260% 260%;
+    animation:oilShift 18s ease-in-out infinite alternate-reverse;
     position:relative;overflow:hidden;color:#fff;
+    box-shadow:0 12px 28px rgba(23,65,166,0.22);
   }
   .hero:before{
     content:'';position:absolute;top:-40%;right:-20%;width:200px;height:200px;border-radius:50%;
@@ -128,6 +145,35 @@
   .gallery-item img{width:140px;height:100px;object-fit:cover;border-radius:12px;display:block;}
   .gallery-item span{display:block;font-size:11px;color:var(--muted);margin-top:6px;}
 
+  .bible-cta{
+    width:100%;display:flex;align-items:center;gap:14px;text-align:left;
+    background:linear-gradient(120deg, #FFFDF7 0%, #FBF3E2 100%);border:1px solid rgba(198,144,42,0.28);
+    border-radius:var(--radius);padding:16px 16px;margin-bottom:22px;cursor:pointer;
+    box-shadow:0 6px 16px rgba(198,144,42,0.10);
+  }
+  .bible-cta-ic{font-size:28px;flex-shrink:0;}
+  .bible-cta-txt{flex:1;display:flex;flex-direction:column;gap:2px;}
+  .bible-cta-txt b{font-family:'Fraunces',serif;font-size:16px;color:var(--text);}
+  .bible-cta-txt span{font-size:11.5px;color:var(--muted);}
+  .bible-cta .chev{font-size:20px;color:var(--amber);flex-shrink:0;}
+
+  .annonce-ticker{
+    height:220px;overflow:hidden;position:relative;margin-bottom:18px;
+    -webkit-mask-image:linear-gradient(to bottom, transparent, black 12%, black 88%, transparent);
+    mask-image:linear-gradient(to bottom, transparent, black 12%, black 88%, transparent);
+  }
+  .annonce-track{display:flex;flex-direction:column;gap:10px;animation:annonceScroll linear infinite;}
+  @keyframes annonceScroll{0%{transform:translateY(0);}100%{transform:translateY(-50%);}}
+  .annonce-card{
+    background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:12px;
+    display:flex;gap:12px;align-items:center;box-shadow:0 2px 8px rgba(20,60,120,0.05);
+  }
+  .annonce-card img{width:54px;height:54px;object-fit:cover;border-radius:10px;flex-shrink:0;}
+  .annonce-thumb{width:54px;height:54px;border-radius:10px;background:var(--blue-soft);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+  .annonce-text{flex:1;min-width:0;}
+  .annonce-text b{display:block;font-family:'Fraunces',serif;font-size:13.5px;color:var(--text);}
+  .annonce-text span{display:block;font-size:11.5px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
   /* ---- Radio player ---- */
   .dial{
     background:var(--bg-card);border:1px solid var(--border);border-radius:20px;padding:28px 22px;text-align:center;margin-bottom:18px;
@@ -137,11 +183,12 @@
   .dial-freq small{font-size:16px;color:var(--muted);margin-left:4px;}
   .dial-name{font-size:14px;color:var(--muted);margin-top:2px;}
   .play-btn{
-    margin-top:20px;width:64px;height:64px;border-radius:50%;border:none;background:var(--blue);
+    margin-top:20px;width:64px;height:64px;border-radius:50%;border:none;background-image:var(--oil);background-size:220% 220%;
     color:#fff;font-size:22px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
     box-shadow:0 8px 24px rgba(37,99,235,0.3);
   }
   .play-btn:active{transform:scale(0.96);}
+  .dial-hint{font-size:11px;color:var(--muted);margin-top:10px;}
 
   /* ---- Tab bar ---- */
   .tabbar{
@@ -170,7 +217,7 @@
   .file-current a{color:var(--blue);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px;}
   .btn{
     display:inline-flex;align-items:center;justify-content:center;gap:6px;
-    background:var(--blue);color:#fff;border:none;border-radius:10px;padding:12px 18px;
+    background-image:var(--oil);background-size:220% 220%;background-position:0% 50%;color:#fff;border:none;border-radius:10px;padding:12px 18px;
     font-family:'Inter';font-weight:600;font-size:13.5px;cursor:pointer;width:100%;
   }
   .btn.secondary{background:var(--bg-elevated);color:var(--text);border:1px solid var(--border);}
@@ -198,6 +245,24 @@
     z-index:50;opacity:0;pointer-events:none;transition:opacity 0.25s, transform 0.25s;
   }
   .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
+
+  /* ---- Visionneuse de fichiers intégrée ---- */
+  .file-modal{position:fixed;inset:0;background:rgba(8,18,38,0.85);z-index:100;display:flex;align-items:center;justify-content:center;padding:26px 16px;}
+  .file-modal-inner{position:relative;width:100%;max-width:480px;height:76vh;background:var(--bg-card);border-radius:18px;padding:14px;display:flex;box-shadow:0 20px 50px rgba(0,0,0,0.35);}
+  .file-modal-close{position:absolute;top:-14px;right:-14px;width:34px;height:34px;border-radius:50%;background:#fff;border:1px solid var(--border);color:var(--text);font-size:15px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.18);z-index:2;}
+  #fileModalBody{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+
+  /* ---- Bible ---- */
+  .bible-lang-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .bible-lang-card{
+    display:flex;align-items:center;justify-content:space-between;background:var(--bg-card);
+    border:1px solid var(--border);border-radius:14px;padding:16px 16px;cursor:pointer;
+    font-family:'Fraunces',serif;font-size:15px;color:var(--text);text-align:left;
+    box-shadow:0 4px 12px rgba(20,60,120,0.05);
+  }
+  .bible-lang-card:active{border-color:var(--amber);}
+  .bible-lang-card[disabled]{opacity:0.4;cursor:not-allowed;}
+  .bible-lang-card .chev{color:var(--amber);font-size:15px;font-family:'Inter';}
 </style>
 </head>
 <body>
@@ -227,7 +292,7 @@
 
   <nav class="tabbar">
     <button class="tab" data-tab="accueil" onclick="go('accueil')"><span class="ic">⌂</span>Accueil</button>
-    <button class="tab" data-tab="cultes" onclick="go('cultes')"><span class="ic">🕊</span>Cultes</button>
+    <button class="tab" data-tab="bible" onclick="go('bible')"><span class="ic">📜</span>Bible</button>
     <button class="tab" data-tab="messages" onclick="go('messages')"><span class="ic">📖</span>Messages</button>
     <button class="tab" data-tab="prieres" onclick="go('prieres')"><span class="ic">🙏</span>Prières</button>
     <button class="tab" data-tab="louange" onclick="go('louange')"><span class="ic">🎶</span>Louange</button>
@@ -235,6 +300,12 @@
   </nav>
 </div>
 <div class="toast" id="toast"></div>
+<div class="file-modal" id="fileModal" style="display:none" onclick="if(event.target===this)closeFileModal()">
+  <div class="file-modal-inner">
+    <button class="file-modal-close" onclick="closeFileModal()">✕</button>
+    <div id="fileModalBody"></div>
+  </div>
+</div>
 
 <script>
 /* ===================== ÉTAT & STOCKAGE ===================== */
@@ -267,21 +338,39 @@ const SECTIONS = {
   galerie:  { label:'Galerie (accueil)', icon:'🖼', empty:"Aucune photo ajoutée pour le moment.",
               fields:[ {k:'titre',l:'Légende (optionnel)',t:'text',ph:'Culte du dimanche'},
                        {k:'fichier',l:'Photo',t:'file'} ] },
+  annonces: { label:'Annonces', icon:'📢', empty:"Aucune annonce publiée pour le moment.",
+              fields:[ {k:'titre',l:'Titre',t:'text',ph:'Grande soirée de prière'},
+                       {k:'texte',l:'Texte',t:'textarea',ph:"Détails de l'annonce..."},
+                       {k:'fichier',l:'Image ou vidéo (optionnel)',t:'file'},
+                       {k:'lien',l:'Lien externe (optionnel)',t:'text',ph:'https://...'} ] },
 };
 
 let DATA = {
   config: { nom:'EPEJ', sousTitre:'Église du Plein Évangile de Jésus-Christ', mission:'', vision:'',
-            radioNom:'', radioFrequence:'', radioFluxUrl:'', logo:null,
-            adresse:'', telephone:'', email:'', facebook:'', youtube:'' },
-  cultes:[], messages:[], prieres:[], louange:[], galerie:[]
+            radioNom:'', radioFrequence:'', radioLien:'', logo:null,
+            adresse:'', telephone:'', email:'', facebook:'', youtube:'',
+            bibleLiens: {
+              fr:'https://www.bible.com/languages/fra', en:'https://www.bible.com/languages/eng',
+              fon:'https://www.bible.com/languages/fon', bariba:'https://www.bible.com/languages/bba',
+              yor:'https://www.bible.com/languages/yor', goun:'https://www.bible.com/languages/guw'
+            } },
+  cultes:[], messages:[], prieres:[], louange:[], galerie:[], annonces:[]
 };
 
 let current = 'accueil';
 let adminAuthed = false;
 let adminTab = 'general';
 let editing = null; // {section, id}
-let audioEl = null;
-let isPlaying = false;
+
+/* ===================== BIBLE ===================== */
+const BIBLE_LANGS = [
+  {code:'fr',     label:'Français'},
+  {code:'en',     label:'English'},
+  {code:'fon',    label:'Fon'},
+  {code:'bariba', label:'Bariba'},
+  {code:'yor',    label:'Yoruba'},
+  {code:'goun',   label:'Goun'},
+];
 
 function toast(msg){
   const t = document.getElementById('toast');
@@ -368,16 +457,17 @@ function renderHeader(){
   else{ logoEl.style.display='none'; }
   document.getElementById('tunerFreq').textContent = (DATA.config.radioFrequence || '—') + ' FM';
   document.getElementById('tunerName').textContent = DATA.config.radioNom || 'Radio non configurée';
-  const has = !!DATA.config.radioFluxUrl;
-  document.getElementById('tunerStatus').textContent = has ? 'EN DIRECT' : 'HORS ANTENNE';
+  const has = !!DATA.config.radioLien;
+  document.getElementById('tunerStatus').textContent = has ? 'ÉCOUTER' : 'BIENTÔT';
   document.getElementById('tunerStatus').className = 'tuner-status ' + (has ? 'on-air' : 'off-air');
-  document.getElementById('tunerBars').classList.toggle('live', isPlaying);
+  document.getElementById('tunerBars').classList.toggle('live', has);
 }
 
 /* ===================== RENDU DES VUES PUBLIQUES ===================== */
 function render(){
   const v = document.getElementById('view');
   if(current==='accueil') v.innerHTML = viewAccueil();
+  else if(current==='bible') v.innerHTML = viewBible();
   else if(current==='radio') v.innerHTML = viewRadio();
   else if(current==='admin') v.innerHTML = adminAuthed ? viewAdmin() : viewPin();
   else if(SECTIONS[current]) v.innerHTML = viewListePublique(current);
@@ -394,6 +484,12 @@ function viewAccueil(){
       <p>${esc(c.sousTitre)}</p>
       ${c.vision ? `<div class="hero-quote">“${esc(c.vision)}”</div>` : ''}
     </div>
+    ${annoncesTicker()}
+    <button class="bible-cta" onclick="go('bible')">
+      <span class="bible-cta-ic">📜</span>
+      <span class="bible-cta-txt"><b>Lire la Bible</b><span>Français · English · Fon · Bariba · Yoruba · Goun</span></span>
+      <span class="chev">›</span>
+    </button>
     ${galerieAccueil()}
     <div class="grid2">
       <div class="stat"><b>${DATA.cultes.length}</b><span>Cultes</span></div>
@@ -408,6 +504,31 @@ function viewAccueil(){
     ${prochainCulte()}
     ${contactCard()}
   `;
+}
+function annoncesTicker(){
+  const items = DATA.annonces;
+  if(!items || !items.length) return '';
+  const card = a => {
+    const img = a.fichier && (a.fichier.type||'').startsWith('image/');
+    const vid = a.fichier && (a.fichier.type||'').startsWith('video/');
+    const clickable = a.fichier || a.lien;
+    const onclick = a.fichier
+      ? `onclick="openFileModal('${esc(a.fichier.url)}','${esc(a.fichier.type||'')}','${esc(a.fichier.nom||'')}')"`
+      : (a.lien ? `onclick="window.open('${esc(a.lien)}','_blank')"` : '');
+    return `<div class="annonce-card" ${clickable?onclick:''} style="${clickable?'cursor:pointer':''}">
+      ${img ? `<img src="${esc(a.fichier.url)}" alt="">` : (vid ? `<div class="annonce-thumb">▶</div>` : `<div class="annonce-thumb">📢</div>`)}
+      <div class="annonce-text"><b>${esc(a.titre)}</b>${a.texte?`<span>${esc(a.texte)}</span>`:''}</div>
+    </div>`;
+  };
+  const loop = items.concat(items);
+  const duration = Math.max(items.length * 5, 12);
+  return `
+    <div class="section-eyebrow">📢 Annonces</div>
+    <div class="annonce-ticker" ontouchstart="this.querySelector('.annonce-track').style.animationPlayState='paused'" ontouchend="this.querySelector('.annonce-track').style.animationPlayState='running'" onmouseenter="this.querySelector('.annonce-track').style.animationPlayState='paused'" onmouseleave="this.querySelector('.annonce-track').style.animationPlayState='running'">
+      <div class="annonce-track" style="animation-duration:${duration}s">
+        ${loop.map(card).join('')}
+      </div>
+    </div>`;
 }
 function galerieAccueil(){
   if(!DATA.galerie || !DATA.galerie.length) return '';
@@ -440,6 +561,7 @@ function prochainCulte(){
       <div class="card-title">${esc(c.titre)}</div>
       <div class="card-meta"><span>📅 ${esc(c.jour)}</span><span>🕐 ${esc(c.heure)}</span><span>📍 ${esc(c.lieu)}</span></div>
       ${c.description ? `<div class="card-desc">${nl2br(c.description)}</div>` : ''}
+      ${DATA.cultes.length>1 ? `<a class="card-link" href="javascript:void(0)" onclick="go('cultes')">Voir tous les cultes (${DATA.cultes.length}) ↗</a>` : ''}
     </div>`;
 }
 
@@ -468,34 +590,70 @@ function viewListePublique(sec){
 function renderFichier(f){
   if(!f || !f.url) return '';
   const type = f.type || '';
-  if(type.startsWith('image/')) return `<img src="${esc(f.url)}" alt="${esc(f.nom||'')}" style="width:100%;border-radius:12px;margin-top:10px;display:block;">`;
+  if(type.startsWith('image/')) return `<img src="${esc(f.url)}" alt="${esc(f.nom||'')}" style="width:100%;border-radius:12px;margin-top:10px;display:block;cursor:pointer;" onclick="openFileModal('${esc(f.url)}','${esc(type)}','${esc(f.nom||'')}')">`;
   if(type.startsWith('video/')) return `<video src="${esc(f.url)}" controls style="width:100%;border-radius:12px;margin-top:10px;"></video>`;
   if(type.startsWith('audio/')) return `<audio src="${esc(f.url)}" controls style="width:100%;margin-top:10px;"></audio>`;
-  return `<a class="card-link" href="${esc(f.url)}" target="_blank" rel="noopener">📎 ${esc(f.nom||'Télécharger le fichier')} ↗</a>`;
+  return `<button class="card-link" style="background:none;border:none;padding:0;cursor:pointer;font-family:inherit;" onclick="openFileModal('${esc(f.url)}','${esc(type)}','${esc(f.nom||'')}')">📎 ${esc(f.nom||'Ouvrir le fichier')}</button>`;
+}
+function openFileModal(url, type, nom){
+  type = type || '';
+  let html = '';
+  if(type.startsWith('image/')){
+    html = `<img src="${esc(url)}" alt="${esc(nom)}" style="max-width:100%;max-height:100%;border-radius:8px;object-fit:contain;">`;
+  } else if(type.startsWith('video/')){
+    html = `<video src="${esc(url)}" controls autoplay style="max-width:100%;max-height:100%;border-radius:8px;"></video>`;
+  } else if(type.startsWith('audio/')){
+    html = `<audio src="${esc(url)}" controls autoplay style="width:100%;"></audio>`;
+  } else if(type==='application/pdf' || /\.pdf($|\?)/i.test(url)){
+    html = `<iframe src="${esc(url)}" style="width:100%;height:100%;border:none;border-radius:8px;background:#fff;"></iframe>`;
+  } else {
+    const viewer = 'https://docs.google.com/gview?url='+encodeURIComponent(url)+'&embedded=true';
+    html = `<iframe src="${esc(viewer)}" style="width:100%;height:100%;border:none;border-radius:8px;background:#fff;"></iframe>`;
+  }
+  document.getElementById('fileModalBody').innerHTML = html;
+  document.getElementById('fileModal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeFileModal(){
+  document.getElementById('fileModal').style.display = 'none';
+  document.getElementById('fileModalBody').innerHTML = '';
+  document.body.style.overflow = '';
 }
 
 function viewRadio(){
   const c = DATA.config;
-  const has = !!c.radioFluxUrl;
+  const has = !!c.radioLien;
   return `
     <div class="section-eyebrow">📻 Diffusion</div>
     <h2 class="section-title">Radio ${esc(c.nom)}</h2>
-    <p class="section-lede">Écoutez la radio de l'église en direct, où que vous soyez.</p>
+    <p class="section-lede">Écoute la radio de l'église en direct sur sa chaîne officielle.</p>
     <div class="dial">
       <div class="dial-freq mono">${esc(c.radioFrequence || '—')}<small>FM</small></div>
       <div class="dial-name">${esc(c.radioNom || 'Radio non configurée')}</div>
-      <button class="play-btn" id="playBtn" onclick="toggleRadio()" ${has ? '' : 'disabled style="opacity:0.4;cursor:not-allowed"'}>${isPlaying ? '❚❚' : '▶'}</button>
+      <button class="play-btn" ${has?`onclick="window.open('${esc(c.radioLien)}','_blank')"`:'disabled style="opacity:0.4;cursor:not-allowed"'}>▶</button>
+      ${has ? `<div class="dial-hint">Ouvre la chaîne dans un nouvel onglet</div>` : ''}
     </div>
-    ${!has ? `<div class="empty"><b>Flux non configuré</b>L'administrateur n'a pas encore renseigné l'adresse du flux radio.</div>` : ''}
+    ${!has ? `<div class="empty"><b>Chaîne non configurée</b>L'administrateur n'a pas encore renseigné le lien de la chaîne radio.</div>` : ''}
   `;
 }
-function toggleRadio(){
-  const url = DATA.config.radioFluxUrl;
-  if(!url) return;
-  if(!audioEl){ audioEl = new Audio(url); audioEl.addEventListener('ended', ()=>{isPlaying=false; render();}); }
-  if(isPlaying){ audioEl.pause(); isPlaying=false; }
-  else{ audioEl.play().catch(()=>toast("Impossible de lire le flux radio")); isPlaying=true; }
-  render();
+
+/* ===================== BIBLE — VUE PUBLIQUE ===================== */
+function viewBible(){
+  const liens = DATA.config.bibleLiens || {};
+  return `
+    <div class="section-eyebrow">📜 Sainte Bible</div>
+    <h2 class="section-title" style="margin-bottom:6px">Lire la Bible</h2>
+    <p class="section-lede">Choisis ta langue pour l'ouvrir sur l'application Bible YouVersion (Bible.com) — gratuite, avec lecture hors-ligne.</p>
+    <div class="bible-lang-grid">
+      ${BIBLE_LANGS.map(l=>{
+        const url = liens[l.code] || '';
+        return `<button class="bible-lang-card" ${url?`onclick="window.open('${esc(url)}','_blank')"`:'disabled'}>
+          <span>${esc(l.label)}</span><span class="chev">${url?'↗':'—'}</span>
+        </button>`;
+      }).join('')}
+    </div>
+    <div class="field-hint" style="margin-top:16px">Astuce : installe l'app "Bible" (YouVersion) sur ton téléphone pour lire hors-ligne, surligner des versets et suivre des plans de lecture.</div>
+  `;
 }
 
 /* ===================== ADMIN ===================== */
@@ -526,6 +684,7 @@ async function checkPin(){
 function viewAdmin(){
   let body = '';
   if(adminTab==='general') body = adminGeneral();
+  else if(adminTab==='bible') body = adminBible();
   else body = adminCrud(adminTab);
   return `
     <div class="admin-header">
@@ -534,6 +693,7 @@ function viewAdmin(){
     </div>
     <div class="adm-tabs">
       <button class="${adminTab==='general'?'active':''}" onclick="adminTab='general';render()">Général</button>
+      <button class="${adminTab==='bible'?'active':''}" onclick="adminTab='bible';render()">📜 Bible</button>
       ${Object.keys(SECTIONS).map(s=>`<button class="${adminTab===s?'active':''}" onclick="adminTab='${s}';editing=null;render()">${SECTIONS[s].label}</button>`).join('')}
     </div>
     ${body}
@@ -550,7 +710,7 @@ function adminGeneral(){
     <div class="field"><label>Vision</label><textarea id="f_vision" placeholder="La vision de l'église...">${esc(c.vision)}</textarea></div>
     <div class="field"><label>Nom de la radio</label><input id="f_radioNom" value="${esc(c.radioNom)}" placeholder="Radio EPEJ"></div>
     <div class="field"><label>Fréquence (ex: 101.5)</label><input id="f_radioFrequence" value="${esc(c.radioFrequence)}" placeholder="101.5"></div>
-    <div class="field"><label>URL du flux audio en direct</label><input id="f_radioFluxUrl" value="${esc(c.radioFluxUrl)}" placeholder="https://.../stream.mp3"></div>
+    <div class="field"><label>Lien vers la chaîne radio (site officiel, Zeno.fm, Mixlr, YouTube en direct...)</label><input id="f_radioLien" value="${esc(c.radioLien)}" placeholder="https://..."></div>
     <div class="section-eyebrow" style="margin-top:22px">Coordonnées (affichées sur l'accueil)</div>
     <div class="field"><label>Adresse</label><input id="f_adresse" value="${esc(c.adresse)}" placeholder="Adresse du local principal"></div>
     <div class="field"><label>Téléphone</label><input id="f_telephone" value="${esc(c.telephone)}" placeholder="+229 ..."></div>
@@ -579,7 +739,7 @@ async function saveGeneral(){
   DATA.config.vision = document.getElementById('f_vision').value.trim();
   DATA.config.radioNom = document.getElementById('f_radioNom').value.trim();
   DATA.config.radioFrequence = document.getElementById('f_radioFrequence').value.trim();
-  DATA.config.radioFluxUrl = document.getElementById('f_radioFluxUrl').value.trim();
+  DATA.config.radioLien = document.getElementById('f_radioLien').value.trim();
   DATA.config.adresse = document.getElementById('f_adresse').value.trim();
   DATA.config.telephone = document.getElementById('f_telephone').value.trim();
   DATA.config.email = document.getElementById('f_email').value.trim();
@@ -604,6 +764,26 @@ async function saveGeneral(){
   render();
 }
 
+/* ===================== BIBLE — ADMINISTRATION ===================== */
+function adminBible(){
+  const liens = DATA.config.bibleLiens || {};
+  return `
+    <div class="section-eyebrow">Liens vers les applications Bible</div>
+    <p class="section-lede">L'appli s'appuie sur YouVersion (Bible.com), qui couvre déjà le français, l'anglais, le fon, le bariba, le yoruba et le goun. Les liens ci-dessous sont préremplis — modifie-les seulement si tu préfères pointer vers une traduction, une appli ou un site différent pour une langue.</p>
+    ${BIBLE_LANGS.map(l=>`
+      <div class="field"><label>${esc(l.label)}</label><input id="bl_${l.code}" value="${esc(liens[l.code]||'')}" placeholder="https://www.bible.com/languages/..."></div>
+    `).join('')}
+    <button class="btn" onclick="saveBibleLiens()">Enregistrer les liens</button>
+  `;
+}
+async function saveBibleLiens(){
+  const liens = {};
+  BIBLE_LANGS.forEach(l=>{ liens[l.code] = document.getElementById('bl_'+l.code).value.trim(); });
+  DATA.config.bibleLiens = liens;
+  await saveConfig();
+  toast('Liens enregistrés');
+  render();
+}
 function adminCrud(sec){
   const s = SECTIONS[sec];
   const items = DATA[sec];
@@ -710,6 +890,9 @@ async function deleteItem(sec,id){
 /* ===================== INIT ===================== */
 loadAll();
 document.querySelector('.tab[data-tab="accueil"]').classList.add('active');
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
 </script>
 </body>
 </html>
