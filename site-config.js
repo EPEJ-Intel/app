@@ -8,7 +8,7 @@
 // ============================================================
 
 const GITHUB_REPO = {
-  owner: "TON-NOM-UTILISATEUR",   // ton nom d'utilisateur ou d'organisation GitHub
+  owner: "EPEJ-Intel",   // ton nom d'utilisateur ou d'organisation GitHub
   repo: "epej-app",               // le nom du dépôt
   branch: "main"                  // la branche utilisée (généralement "main")
 };
