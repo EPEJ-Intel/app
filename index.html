@@ -343,24 +343,31 @@ const SECTIONS = {
                        {k:'texte',l:'Texte',t:'textarea',ph:"Détails de l'annonce..."},
                        {k:'fichier',l:'Image ou vidéo (optionnel)',t:'file'},
                        {k:'lien',l:'Lien externe (optionnel)',t:'text',ph:'https://...'} ] },
+  emissions:{ label:'Émissions radio', icon:'🎙', empty:"Aucune émission publiée pour le moment.",
+              fields:[ {k:'titre',l:"Titre de l'émission",t:'text',ph:'Étude biblique du mardi'},
+                       {k:'description',l:'Description',t:'textarea',ph:"Résumé de l'émission..."},
+                       {k:'fichier',l:'Fichier audio',t:'file'},
+                       {k:'lien',l:'Lien externe (optionnel)',t:'text',ph:'https://...'} ] },
 };
 
 let DATA = {
   config: { nom:'EPEJ', sousTitre:'Église du Plein Évangile de Jésus-Christ', mission:'', vision:'',
-            radioNom:'', radioFrequence:'', radioLien:'', logo:null,
+            radioNom:'', radioFrequence:'', radioLien:'', radioFluxUrl:'', logo:null,
             adresse:'', telephone:'', email:'', facebook:'', youtube:'',
             bibleLiens: {
               fr:'https://www.bible.com/languages/fra', en:'https://www.bible.com/languages/eng',
               fon:'https://www.bible.com/languages/fon', bariba:'https://www.bible.com/languages/bba',
               yor:'https://www.bible.com/languages/yor', goun:'https://www.bible.com/languages/guw'
             } },
-  cultes:[], messages:[], prieres:[], louange:[], galerie:[], annonces:[]
+  cultes:[], messages:[], prieres:[], louange:[], galerie:[], annonces:[], emissions:[]
 };
 
 let current = 'accueil';
 let adminAuthed = false;
 let adminTab = 'general';
 let editing = null; // {section, id}
+let audioEl = null;
+let isPlaying = false;
 
 /* ===================== BIBLE ===================== */
 const BIBLE_LANGS = [
@@ -380,6 +387,14 @@ function toast(msg){
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 function esc(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function nl2br(s){ return esc(s).replace(/\n/g,'<br>'); }
+// Pour les champs de contenu (description, mission...) : si l'admin a tapé du HTML (balises <...>),
+// on le restitue tel quel pour permettre la mise en forme (gras, liens, etc.) ; sinon on convertit
+// simplement les retours à la ligne, sans échapper le texte.
+function richText(s){
+  if(!s) return '';
+  if(s.indexOf('<') === -1) return s.replace(/\n/g,'<br>');
+  return s;
+}
 
 /* ===================== STOCKAGE — DÉPÔT GITHUB ===================== */
 const GH_API = 'https://api.github.com';
@@ -412,6 +427,26 @@ async function ghPutFile(path, contentBase64, message, sha){
   });
   if(!res.ok) throw new Error('Échec de l\'enregistrement sur GitHub');
   return res.json();
+}
+// Envoi de fichiers volumineux via l'API Git bas niveau (contourne la limite de 1 Mo de l'API "contents")
+async function ghUploadLargeFile(path, file, message){
+  const base64 = await fileToBase64(file);
+  const jpost = (url, body) => fetch(url, { method:'POST', headers: Object.assign({'Content-Type':'application/json'}, ghHeaders()), body: JSON.stringify(body) }).then(r=>{ if(!r.ok) throw new Error('Échec API GitHub'); return r.json(); });
+  const repoBase = `${GH_API}/repos/${GITHUB_REPO.owner}/${GITHUB_REPO.repo}`;
+  const blob = await jpost(`${repoBase}/git/blobs`, { content: base64, encoding: 'base64' });
+  const refRes = await fetch(`${repoBase}/git/refs/heads/${GITHUB_REPO.branch}`, { headers: ghHeaders() });
+  if(!refRes.ok) throw new Error('Branche introuvable');
+  const ref = await refRes.json();
+  const commitSha = ref.object.sha;
+  const commitRes = await fetch(`${repoBase}/git/commits/${commitSha}`, { headers: ghHeaders() });
+  const commit = await commitRes.json();
+  const tree = await jpost(`${repoBase}/git/trees`, { base_tree: commit.tree.sha, tree:[{ path, mode:'100644', type:'blob', sha: blob.sha }] });
+  const newCommit = await jpost(`${repoBase}/git/commits`, { message, tree: tree.sha, parents:[commitSha] });
+  const patchRes = await fetch(`${repoBase}/git/refs/heads/${GITHUB_REPO.branch}`, {
+    method:'PATCH', headers: Object.assign({'Content-Type':'application/json'}, ghHeaders()), body: JSON.stringify({ sha: newCommit.sha })
+  });
+  if(!patchRes.ok) throw new Error('Échec de mise à jour de la branche');
+  return rawUrl(path);
 }
 
 async function loadAll(){
@@ -453,11 +488,11 @@ function renderHeader(){
   document.getElementById('hdrNom').textContent = DATA.config.nom || 'EPEJ';
   document.getElementById('hdrSous').textContent = DATA.config.sousTitre || '';
   const logoEl = document.getElementById('hdrLogo');
-  if(DATA.config.logo && DATA.config.logo.url){ logoEl.src = DATA.config.logo.url; logoEl.style.display='block'; }
-  else{ logoEl.style.display='none'; }
+  logoEl.src = (DATA.config.logo && DATA.config.logo.url) || 'icons/icon-512.png';
+  logoEl.style.display = 'block';
   document.getElementById('tunerFreq').textContent = (DATA.config.radioFrequence || '—') + ' FM';
   document.getElementById('tunerName').textContent = DATA.config.radioNom || 'Radio non configurée';
-  const has = !!DATA.config.radioLien;
+  const has = !!DATA.config.radioLien || !!DATA.config.radioFluxUrl;
   document.getElementById('tunerStatus').textContent = has ? 'ÉCOUTER' : 'BIENTÔT';
   document.getElementById('tunerStatus').className = 'tuner-status ' + (has ? 'on-air' : 'off-air');
   document.getElementById('tunerBars').classList.toggle('live', has);
@@ -499,7 +534,7 @@ function viewAccueil(){
     </div>
     ${c.mission ? `
     <div class="section-eyebrow">Notre mission</div>
-    <p class="section-lede" style="margin-bottom:22px">${nl2br(c.mission)}</p>` : ''}
+    <p class="section-lede" style="margin-bottom:22px">${richText(c.mission)}</p>` : ''}
     <div class="section-eyebrow">À l'affiche</div>
     ${prochainCulte()}
     ${contactCard()}
@@ -560,7 +595,7 @@ function prochainCulte(){
   return `<div class="card">
       <div class="card-title">${esc(c.titre)}</div>
       <div class="card-meta"><span>📅 ${esc(c.jour)}</span><span>🕐 ${esc(c.heure)}</span><span>📍 ${esc(c.lieu)}</span></div>
-      ${c.description ? `<div class="card-desc">${nl2br(c.description)}</div>` : ''}
+      ${c.description ? `<div class="card-desc">${richText(c.description)}</div>` : ''}
       ${DATA.cultes.length>1 ? `<a class="card-link" href="javascript:void(0)" onclick="go('cultes')">Voir tous les cultes (${DATA.cultes.length}) ↗</a>` : ''}
     </div>`;
 }
@@ -580,7 +615,7 @@ function viewListePublique(sec){
     return `<div class="card">
         <div class="card-title">${esc(it.titre)}</div>
         ${meta ? `<div class="card-meta">${meta}</div>` : ''}
-        ${desc && it[desc.k] ? `<div class="card-desc">${nl2br(it[desc.k])}</div>` : ''}
+        ${desc && it[desc.k] ? `<div class="card-desc">${richText(it[desc.k])}</div>` : ''}
         ${it.lien ? `<a class="card-link" href="${esc(it.lien)}" target="_blank" rel="noopener">Ouvrir le lien ↗</a>` : ''}
         ${renderFichier(it.fichier)}
       </div>`;
@@ -622,19 +657,40 @@ function closeFileModal(){
 
 function viewRadio(){
   const c = DATA.config;
-  const has = !!c.radioLien;
+  const hasFlux = !!c.radioFluxUrl;
+  const hasLien = !!c.radioLien;
+  const emissions = DATA.emissions || [];
   return `
     <div class="section-eyebrow">📻 Diffusion</div>
     <h2 class="section-title">Radio ${esc(c.nom)}</h2>
-    <p class="section-lede">Écoute la radio de l'église en direct sur sa chaîne officielle.</p>
+    <p class="section-lede">Écoute la radio de l'église en direct, ou une émission à la demande.</p>
     <div class="dial">
       <div class="dial-freq mono">${esc(c.radioFrequence || '—')}<small>FM</small></div>
       <div class="dial-name">${esc(c.radioNom || 'Radio non configurée')}</div>
-      <button class="play-btn" ${has?`onclick="window.open('${esc(c.radioLien)}','_blank')"`:'disabled style="opacity:0.4;cursor:not-allowed"'}>▶</button>
-      ${has ? `<div class="dial-hint">Ouvre la chaîne dans un nouvel onglet</div>` : ''}
+      <button class="play-btn" ${hasFlux?`onclick="toggleRadio()"`:(hasLien?`onclick="window.open('${esc(c.radioLien)}','_blank')"`:'disabled style="opacity:0.4;cursor:not-allowed"')}>${hasFlux && isPlaying ? '❚❚' : '▶'}</button>
+      ${hasFlux ? `<div class="dial-hint">${isPlaying?'En lecture — direct intégré':'Lecture du direct intégrée à l’appli'}</div>` : (hasLien ? `<div class="dial-hint">Ouvre la chaîne dans un nouvel onglet</div>` : '')}
     </div>
-    ${!has ? `<div class="empty"><b>Chaîne non configurée</b>L'administrateur n'a pas encore renseigné le lien de la chaîne radio.</div>` : ''}
+    ${!hasFlux && !hasLien ? `<div class="empty"><b>Radio non configurée</b>L'administrateur n'a pas encore renseigné de flux ou de lien radio.</div>` : ''}
+    ${hasFlux && hasLien ? `<div style="text-align:center;margin-bottom:8px"><a class="card-link" href="${esc(c.radioLien)}" target="_blank" rel="noopener">Ouvrir la chaîne officielle ↗</a></div>` : ''}
+    ${emissions.length ? `
+      <div class="section-eyebrow" style="margin-top:24px">🎙 Émissions à écouter</div>
+      ${emissions.map(e=>`
+        <div class="card">
+          <div class="card-title">${esc(e.titre)}</div>
+          ${e.description ? `<div class="card-desc">${richText(e.description)}</div>` : ''}
+          ${e.lien ? `<a class="card-link" href="${esc(e.lien)}" target="_blank" rel="noopener">Ouvrir le lien ↗</a>` : ''}
+          ${renderFichier(e.fichier)}
+        </div>`).join('')}
+    ` : ''}
   `;
+}
+function toggleRadio(){
+  const url = DATA.config.radioFluxUrl;
+  if(!url) return;
+  if(!audioEl){ audioEl = new Audio(url); audioEl.addEventListener('ended', ()=>{isPlaying=false; render();}); audioEl.addEventListener('error', ()=>{ isPlaying=false; toast('Impossible de lire ce flux'); render(); }); }
+  if(isPlaying){ audioEl.pause(); isPlaying=false; }
+  else{ audioEl.play().catch(()=>toast('Impossible de lire le flux radio')); isPlaying=true; }
+  render();
 }
 
 /* ===================== BIBLE — VUE PUBLIQUE ===================== */
@@ -703,13 +759,14 @@ function adminGeneral(){
   const c = DATA.config;
   return `
     <div class="section-eyebrow">Identité & radio</div>
-    ${fileFieldConfigHtml('logo','Logo de l\'église','Format carré recommandé, 1 Mo maximum.')}
+    ${fileFieldConfigHtml('logo','Logo de l\'église','Format carré recommandé, jusqu\'à 100 Mo.')}
     <div class="field"><label>Nom de l'église</label><input id="f_nom" value="${esc(c.nom)}"></div>
     <div class="field"><label>Sous-titre</label><input id="f_sousTitre" value="${esc(c.sousTitre)}"></div>
-    <div class="field"><label>Mission</label><textarea id="f_mission" placeholder="La mission de l'église...">${esc(c.mission)}</textarea></div>
+    <div class="field"><label>Mission</label><textarea id="f_mission" placeholder="La mission de l'église...">${esc(c.mission)}</textarea><div class="field-hint">Texte simple, ou HTML pour la mise en forme.</div></div>
     <div class="field"><label>Vision</label><textarea id="f_vision" placeholder="La vision de l'église...">${esc(c.vision)}</textarea></div>
     <div class="field"><label>Nom de la radio</label><input id="f_radioNom" value="${esc(c.radioNom)}" placeholder="Radio EPEJ"></div>
     <div class="field"><label>Fréquence (ex: 101.5)</label><input id="f_radioFrequence" value="${esc(c.radioFrequence)}" placeholder="101.5"></div>
+    <div class="field"><label>URL du flux audio en direct (optionnel — pour la lecture intégrée dans l'appli)</label><input id="f_radioFluxUrl" value="${esc(c.radioFluxUrl)}" placeholder="https://.../stream.mp3"></div>
     <div class="field"><label>Lien vers la chaîne radio (site officiel, Zeno.fm, Mixlr, YouTube en direct...)</label><input id="f_radioLien" value="${esc(c.radioLien)}" placeholder="https://..."></div>
     <div class="section-eyebrow" style="margin-top:22px">Coordonnées (affichées sur l'accueil)</div>
     <div class="field"><label>Adresse</label><input id="f_adresse" value="${esc(c.adresse)}" placeholder="Adresse du local principal"></div>
@@ -727,7 +784,7 @@ function fileFieldConfigHtml(key, label, hint){
     html += `<div class="file-current"><a href="${esc(current.url)}" target="_blank" rel="noopener">📎 ${esc(current.nom||'Fichier actuel')}</a><button type="button" class="icon-btn" onclick="clearConfigFile('${key}')" title="Retirer">✕</button></div>`;
   }
   html += `<input type="file" id="cf_${key}" accept="image/*">`;
-  html += `<div class="field-hint">${hint||'Image — 1 Mo maximum.'}</div>`;
+  html += `<div class="field-hint">${hint||"Image — jusqu'à 100 Mo."}</div>`;
   html += `</div>`;
   return html;
 }
@@ -739,6 +796,7 @@ async function saveGeneral(){
   DATA.config.vision = document.getElementById('f_vision').value.trim();
   DATA.config.radioNom = document.getElementById('f_radioNom').value.trim();
   DATA.config.radioFrequence = document.getElementById('f_radioFrequence').value.trim();
+  DATA.config.radioFluxUrl = document.getElementById('f_radioFluxUrl').value.trim();
   DATA.config.radioLien = document.getElementById('f_radioLien').value.trim();
   DATA.config.adresse = document.getElementById('f_adresse').value.trim();
   DATA.config.telephone = document.getElementById('f_telephone').value.trim();
@@ -748,15 +806,13 @@ async function saveGeneral(){
   const logoInp = document.getElementById('cf_logo');
   if(logoInp && logoInp.files && logoInp.files[0]){
     const file = logoInp.files[0];
-    if(file.size > 1000000){ toast('Logo trop lourd (max 1 Mo)'); return; }
+    if(file.size > 100000000){ toast('Logo trop lourd (max ~100 Mo)'); return; }
     toast('Envoi du logo en cours…');
     try{
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
       const path = `uploads/config/logo_${safeName}`;
-      const contentB64 = await fileToBase64(file);
-      const existing = await ghGetFile(path);
-      await ghPutFile(path, contentB64, 'Mise à jour du logo', existing ? existing.sha : undefined);
-      DATA.config.logo = { url: rawUrl(path), nom: file.name, type: file.type };
+      const url = await ghUploadLargeFile(path, file, 'Mise à jour du logo');
+      DATA.config.logo = { url, nom: file.name, type: file.type };
     }catch(e){ toast("Échec de l'envoi du logo"); return; }
   }
   await saveConfig();
@@ -813,7 +869,7 @@ function adminForm(sec){
   const fieldsHtml = s.fields.map(f=>{
     if(f.t==='file') return fileFieldHtml(sec,f,item);
     const val = esc(item[f.k]||'');
-    if(f.t==='textarea') return `<div class="field"><label>${f.l}</label><textarea id="ff_${f.k}" placeholder="${esc(f.ph||'')}">${val}</textarea></div>`;
+    if(f.t==='textarea') return `<div class="field"><label>${f.l}</label><textarea id="ff_${f.k}" placeholder="${esc(f.ph||'')}">${val}</textarea><div class="field-hint">Texte simple, ou HTML pour la mise en forme (ex. &lt;b&gt;gras&lt;/b&gt;, &lt;a href="..."&gt;lien&lt;/a&gt;).</div></div>`;
     return `<div class="field"><label>${f.l}</label><input id="ff_${f.k}" value="${val}" placeholder="${esc(f.ph||'')}"></div>`;
   }).join('');
   return `
@@ -832,7 +888,7 @@ function fileFieldHtml(sec, f, item){
     html += `<div class="file-current"><a href="${esc(current.url)}" target="_blank" rel="noopener">📎 ${esc(current.nom||'Fichier actuel')}</a><button type="button" class="icon-btn" onclick="clearFile('${sec}','${f.k}')" title="Retirer le fichier">✕</button></div>`;
   }
   html += `<input type="file" id="ff_${f.k}" accept="image/*,video/*,audio/*,.pdf,.doc,.docx">`;
-  html += `<div class="field-hint">Images, PDF, Word ou courts audio/vidéo — 1 Mo maximum (limite de GitHub). Pour un fichier plus lourd : dépose-le manuellement dans le dossier "uploads" sur GitHub.com, puis colle son nom exact ci-dessus à la place de choisir un fichier. Pour une vidéo longue, utilise plutôt un lien YouTube.</div>`;
+  html += `<div class="field-hint">Images, PDF, Word, audio ou vidéo — jusqu'à environ 100 Mo par fichier (limite technique de GitHub). L'envoi peut prendre un moment pour les gros fichiers, selon la connexion. Au-delà de 100 Mo, utilise plutôt un lien YouTube ou un service d'hébergement dédié.</div>`;
   html += `</div>`;
   return html;
 }
@@ -856,18 +912,16 @@ async function submitForm(sec){
     const inp = document.getElementById('ff_'+f.k);
     if(inp && inp.files && inp.files[0]){
       const file = inp.files[0];
-      if(file.size > 1000000){
-        toast('Fichier trop lourd (max 1 Mo) — voir la note sous le champ');
+      if(file.size > 100000000){
+        toast('Fichier trop lourd (max ~100 Mo)');
         return;
       }
-      toast('Envoi du fichier en cours…');
+      toast(file.size > 5000000 ? 'Envoi du fichier en cours… (peut prendre un moment pour les gros fichiers)' : 'Envoi du fichier en cours…');
       try{
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
         const path = `uploads/${sec}/${obj.id}/${safeName}`;
-        const contentB64 = await fileToBase64(file);
-        const existing = await ghGetFile(path);
-        await ghPutFile(path, contentB64, `Ajout fichier — ${file.name}`, existing ? existing.sha : undefined);
-        obj[f.k] = { url: rawUrl(path), nom: file.name, type: file.type };
+        const url = await ghUploadLargeFile(path, file, `Ajout fichier — ${file.name}`);
+        obj[f.k] = { url, nom: file.name, type: file.type };
       }catch(e){
         toast("Échec de l'envoi du fichier — vérifie ton jeton d'accès");
         return;

@@ -4,12 +4,16 @@ Application mobile web pour l'Église du Plein Évangile de Jésus-Christ : cult
 
 Tout est hébergé sur **GitHub uniquement** — pas de compte séparé à créer. Le dépôt GitHub joue à la fois le rôle d'hébergeur du site et de "base de données" (les contenus sont de simples fichiers dans le dépôt).
 
+## Contenu de départ
+
+`data/config.json` contient déjà quelques informations réelles trouvées via une recherche sur epej.org (le site bloque la lecture automatisée directe de ses pages, donc seuls des extraits ont pu être récupérés) : une adresse (Quartier Gah, Parakou) et un texte de mission/bienvenue s'inspirant du site. **Vérifie et complète ces informations toi-même** (Admin → Général) — je n'ai pas pu confirmer de numéro de téléphone ou d'e-mail, ces champs sont donc restés vides plutôt que d'inventer une donnée.
+
 ## Fichiers
 
 - `index.html` — l'application complète
 - `site-config.js` — indique à l'appli quel dépôt GitHub utiliser (à compléter)
-- `manifest.json`, `sw.js`, `icons/` — rendent l'application installable sur téléphone
-- `data/` — les contenus publiés (config — incluant les liens Bible et radio —, cultes, messages, prières, louange, galerie), au format JSON
+- `manifest.json`, `sw.js`, `icons/` (vrai logo EPEJ) — rendent l'application installable sur téléphone
+- `data/` — les contenus publiés (config — incluant les liens Bible et radio —, cultes, messages, prières, louange, galerie, annonces, émissions radio), au format JSON
 - `README.md` — ce guide
 
 ## Étape 1 — Créer le dépôt GitHub
@@ -51,16 +55,18 @@ C'est ce qui remplace un mot de passe classique : un "jeton" (token) que toi seu
 ## Utilisation
 
 - Ouvre l'appli → icône ⚙︎ en haut à droite → colle ton jeton d'accès → tu es dans l'espace admin.
-- **Logo** : Admin → Général → dépose une image carrée (1 Mo max) → elle remplace l'icône dans l'en-tête pour tous les visiteurs.
+- **Logo** : le vrai logo EPEJ (globe + livre) est déjà affiché par défaut dans l'en-tête. Pour le changer, Admin → Général → dépose une nouvelle image.
 - **Galerie d'accueil** : Admin → onglet "Galerie (accueil)" → ajoute des photos avec une légende optionnelle → elles s'affichent en bandeau défilant sur l'écran d'accueil.
 - **Annonces** : Admin → onglet "Annonces" → ajoute un titre, un texte, une image ou vidéo, et/ou un lien → elles apparaissent dans un bandeau qui défile automatiquement vers le haut en haut de l'accueil (l'utilisateur peut le mettre en pause en gardant le doigt/la souris dessus). Idéal pour les infos ponctuelles (événement à venir, changement d'horaire...).
 - **Fichiers ouverts dans l'appli** : quand un visiteur tape sur un fichier joint (PDF, Word, image...), il s'ouvre dans une fenêtre à l'intérieur de l'application plutôt que dans un nouvel onglet ou une appli externe.
 - **Coordonnées** : Admin → Général → renseigne adresse, téléphone, e-mail, Facebook, YouTube → une carte "Nous contacter" apparaît automatiquement sur l'accueil si au moins un champ est rempli.
-- Tout ce que tu publies (cultes, messages, prières, louange, galerie, réglages radio, mission/vision, logo, coordonnées) devient visible pour tous les visiteurs après actualisation de leur page — généralement en quelques secondes à quelques minutes. Tout se fait depuis l'appli elle-même : tu n'as plus besoin de modifier quoi que ce soit à la main sur GitHub.com après la mise en place initiale.
-- **Fichiers joints** (image, PDF, Word, court audio/vidéo) : limités à **1 Mo** par fichier via le bouton d'envoi intégré (limite technique de GitHub). Pour un fichier plus lourd :
-  - dépose-le toi-même dans le dossier `uploads/` de ton dépôt sur GitHub.com (glisser-déposer, jusqu'à ~25 Mo), en créant un sous-dossier si besoin ;
-  - ou, mieux, pour une vidéo longue, héberge-la sur YouTube et colle le lien dans le champ "Lien externe" de l'appli.
-- Pour la radio : renseigne dans Admin → Général le **lien vers la chaîne radio** (le site de ta radio, une page Zeno.fm/Mixlr, ou une diffusion YouTube en direct), ainsi que le nom et la fréquence à afficher. En appuyant sur le bouton radio, l'appli ouvre directement cette chaîne dans un nouvel onglet.
+- **Texte enrichi** : dans les champs "description" longs (messages, cultes, mission...), tu peux taper du HTML simple (`<b>gras</b>`, `<a href="...">lien</a>`, etc.) et il s'affichera mis en forme chez les visiteurs, pas comme du texte brut.
+- Tout ce que tu publies devient visible pour tous les visiteurs après actualisation de leur page — généralement en quelques secondes à quelques minutes. Tout se fait depuis l'appli elle-même : tu n'as plus besoin de modifier quoi que ce soit à la main sur GitHub.com après la mise en place initiale.
+- **Fichiers joints** (image, PDF, Word, audio, vidéo) : jusqu'à **~100 Mo** par fichier (limite technique de GitHub — l'envoi passe par son API bas niveau pour dépasser la petite limite habituelle de 1 Mo). L'envoi peut prendre un moment pour les gros fichiers, selon la connexion. Au-delà de 100 Mo, héberge plutôt le fichier sur YouTube et colle le lien dans le champ "Lien externe".
+- **Radio** : deux options, utilisables séparément ou ensemble.
+  - **Direct intégré** : renseigne une URL de flux audio (`.mp3`/`.aac`) dans "URL du flux audio en direct" → un vrai lecteur play/pause apparaît dans l'appli.
+  - **Lien de chaîne** : renseigne un lien (site, Zeno.fm, Mixlr, YouTube en direct) dans "Lien vers la chaîne radio" → s'il n'y a pas de flux direct, le bouton radio ouvre ce lien dans un nouvel onglet.
+- **Émissions radio** : Admin → onglet "Émissions radio" → ajoute un titre, une description, un fichier audio et/ou un lien → elles apparaissent en liste écoutable à la demande sur la page Radio, sous le lecteur en direct.
 
 ## Bible en 6 langues
 
