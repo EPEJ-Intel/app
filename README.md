@@ -30,24 +30,10 @@ Application mobile web pour l'Église du Plein Évangile de Jésus-Christ : cult
    }
    ```
 
-5. Menu de gauche → **Storage** → **Commencer** → même région → une fois créé, onglet **Règles** → colle :
+5. Retourne à la page d'accueil du projet (icône maison) → icône **`</>`** ("Ajouter une application Web") → donne-lui un nom → **Enregistrer l'application**.
+6. Firebase affiche un bloc `firebaseConfig = { apiKey: ..., ... }`. Copie ces valeurs.
 
-   ```
-   rules_version = '2';
-   service firebase.storage {
-     match /b/{bucket}/o {
-       match /uploads/{allPaths=**} {
-         allow read: if true;
-         allow write: if true;
-       }
-     }
-   }
-   ```
-
-   ⚠️ Ces règles laissent la base ouverte en lecture/écriture à quiconque connaît l'adresse — volontairement simple pour démarrer (le code d'accès dans l'appli suffit à décourager un visiteur normal), mais ce n'est pas une sécurité de niveau professionnel. Le compte gratuit Storage inclut 5 Go et 1 Go de téléchargement par jour — largement suffisant pour ce genre d'usage.
-
-6. Retourne à la page d'accueil du projet (icône maison) → icône **`</>`** ("Ajouter une application Web") → donne-lui un nom → **Enregistrer l'application**.
-7. Firebase affiche un bloc `firebaseConfig = { apiKey: ..., ... }`. Copie ces valeurs.
+⚠️ **Pas de Storage.** Depuis fin 2024, Firebase Storage exige le forfait payant "Blaze" (carte bancaire), même pour un usage 100% gratuit. Pour rester sans carte bancaire, l'appli n'envoie aucun fichier vers Firebase : à la place, chaque contenu (culte, message, photo, vidéo...) accepte un **lien** — l'appli détecte automatiquement s'il s'agit d'une image, d'une vidéo YouTube, d'un audio ou d'un document, et l'affiche en conséquence. Voir la section "Ajouter des images et vidéos sans compte payant" plus bas.
 
 ## Étape 2 — Compléter firebase-config.js
 
@@ -65,17 +51,23 @@ N'importe quel hébergeur de site statique fonctionne (GitHub Pages, Netlify, Ve
 - **Code d'accès admin par défaut : `2026`** — change-le dès que possible dans Admin → Général → "Code d'accès admin".
 - Ouvre l'appli → icône ⚙︎ en haut à droite → entre le code → tu es dans l'espace admin.
 - Tout ce que tu publies (cultes, messages, prières, louange, galerie, annonces, émissions radio, réglages, logo, coordonnées) apparaît **instantanément** chez tous les visiteurs, sur tous les appareils — pas besoin d'actualiser.
-- **Logo** : le vrai logo EPEJ est affiché par défaut. Pour le changer, Admin → Général → dépose une nouvelle image.
-- **Fichiers joints** (image, PDF, Word, audio, vidéo) : pas de petite limite artificielle — Firebase Storage gère des fichiers volumineux sans problème pour ce type d'usage.
+- **Logo** : le vrai logo EPEJ est affiché par défaut. Pour le changer, Admin → Général → colle un lien direct vers une image.
+- **Fichiers/médias** : chaque contenu (culte, message, prière, louange, annonce, émission, photo de galerie) a un champ **"Lien"** — colle une adresse et l'appli affiche automatiquement le bon format : image, vidéo YouTube intégrée, audio avec lecteur, ou bouton "Ouvrir le lien" pour tout le reste (PDF, Word...). Voir la section dédiée plus bas pour savoir où héberger tes images/vidéos gratuitement.
 - **Texte enrichi** : dans les champs de description longs, tu peux taper du HTML simple (`<b>gras</b>`, `<a href="...">lien</a>`) et il s'affichera mis en forme.
 - **Radio** : deux options, utilisables ensemble.
   - **Direct intégré** : URL de flux audio (`.mp3`/`.aac`) → lecteur play/pause dans l'appli.
   - **Lien de chaîne** : lien vers le site/Zeno.fm/Mixlr/YouTube en direct → bouton qui ouvre la chaîne si pas de flux direct.
   - **Émissions radio** (onglet dédié dans l'admin) : programmes à écouter à la demande, sous le lecteur en direct.
 - **Annonces** : bandeau qui défile automatiquement vers le haut sur l'accueil (texte, image, vidéo, lien) — se met en pause au toucher/survol.
-- **Galerie d'accueil** : photos avec légende, affichées en bandeau défilant sur l'accueil.
-- **Fichiers ouverts dans l'appli** : PDF, Word, images s'ouvrent dans une fenêtre à l'intérieur de l'application, pas dans un nouvel onglet.
+- **Galerie d'accueil** : photos (via lien direct) avec légende, affichées en bandeau défilant sur l'accueil.
 - **Coordonnées** : adresse, téléphone, e-mail, Facebook, YouTube → carte "Nous contacter" automatique sur l'accueil.
+
+## Ajouter des images et vidéos sans compte payant
+
+- **Vidéos** : mets-les sur **YouTube** (compte gratuit, uploads illimités) → colle le lien normal (`youtube.com/watch?v=...` ou `youtu.be/...`) dans le champ "Lien" → l'appli l'intègre automatiquement en lecteur vidéo.
+- **Photos** : héberge-les gratuitement sur un service comme **imgur.com** (aucun compte requis pour un upload simple) → clique-droit sur l'image affichée → "Copier l'adresse de l'image" (l'adresse doit se terminer par `.jpg`, `.png`, etc.) → colle ce lien dans le champ "Lien".
+- **Audio** : la plupart des hébergeurs de fichiers audio gratuits (ex. liens directs `.mp3`) fonctionnent aussi automatiquement.
+- **Documents (PDF, Word...)** : héberge-les sur Google Drive → clic droit → "Partager" → "Copier le lien" (assure-toi que l'accès est "Tous les utilisateurs disposant du lien") → colle-le ; l'appli affichera un bouton "Ouvrir le lien".
 
 ## Bible en 6 langues
 

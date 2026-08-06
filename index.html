@@ -15,10 +15,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Configuration du dépôt GitHub (sert de base de données) -->
-<!-- Firebase (base de données + fichiers, mise à jour en temps réel) -->
+<!-- Firebase (base de données, mise à jour en temps réel) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script src="firebase-config.js"></script>
 <style>
   :root{
@@ -255,6 +254,8 @@
   .file-modal-inner{position:relative;width:100%;max-width:480px;height:76vh;background:var(--bg-card);border-radius:18px;padding:14px;display:flex;box-shadow:0 20px 50px rgba(0,0,0,0.35);}
   .file-modal-close{position:absolute;top:-14px;right:-14px;width:34px;height:34px;border-radius:50%;background:#fff;border:1px solid var(--border);color:var(--text);font-size:15px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.18);z-index:2;}
   #fileModalBody{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+  .media-embed{position:relative;width:100%;padding-top:56.25%;margin-top:10px;border-radius:12px;overflow:hidden;}
+  .media-embed iframe{position:absolute;inset:0;width:100%;height:100%;border:none;}
 
   /* ---- Bible ---- */
   .bible-lang-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
@@ -320,43 +321,39 @@ const SECTIONS = {
                        {k:'heure',l:'Heure',t:'text',ph:'10h00'},
                        {k:'lieu',l:'Lieu',t:'text',ph:'Local principal'},
                        {k:'description',l:'Description',t:'textarea',ph:'Détails du culte...'},
-                       {k:'fichier',l:'Affiche / programme (fichier)',t:'file'} ] },
+                       {k:'lien',l:'Lien (affiche, photo, vidéo YouTube...)',t:'text',ph:'https://...'} ] },
   messages: { label:'Messages',          icon:'📖', empty:"Aucun message publié pour le moment.",
               fields:[ {k:'titre',l:'Titre du message',t:'text',ph:'La foi qui déplace les montagnes'},
                        {k:'orateur',l:'Orateur',t:'text',ph:'Pasteur ...'},
                        {k:'date',l:'Date',t:'text',ph:'12 juillet 2026'},
-                       {k:'lien',l:'Lien externe (YouTube, etc.)',t:'text',ph:'https://...'},
-                       {k:'description',l:'Résumé',t:'textarea',ph:'Résumé du message...'},
-                       {k:'fichier',l:'Fichier (vidéo, audio, Word, PDF...)',t:'file'} ] },
+                       {k:'lien',l:'Lien (vidéo YouTube, audio, document...)',t:'text',ph:'https://...'},
+                       {k:'description',l:'Résumé',t:'textarea',ph:'Résumé du message...'} ] },
   prieres:  { label:'Prières',           icon:'🙏', empty:"Aucun sujet de prière publié pour le moment.",
               fields:[ {k:'titre',l:'Sujet de prière',t:'text',ph:'Pour les malades'},
                        {k:'contenu',l:'Contenu',t:'textarea',ph:'Détail du sujet de prière...'},
                        {k:'date',l:'Date',t:'text',ph:'Cette semaine'},
-                       {k:'fichier',l:'Fichier joint (image, PDF...)',t:'file'} ] },
+                       {k:'lien',l:'Lien (image...)',t:'text',ph:'https://...'} ] },
   louange:  { label:'Louange & Adoration', icon:'🎶', empty:"Aucun contenu de louange publié pour le moment.",
               fields:[ {k:'titre',l:'Titre',t:'text',ph:'Titre du chant / thème'},
                        {k:'auteur',l:'Auteur / Ministère',t:'text',ph:'Groupe de louange'},
                        {k:'theme',l:'Thème',t:'text',ph:'Adoration, reconnaissance...'},
-                       {k:'lien',l:'Lien externe (YouTube, etc.)',t:'text',ph:'https://...'},
-                       {k:'fichier',l:'Fichier (audio, vidéo...)',t:'file'} ] },
+                       {k:'lien',l:'Lien (vidéo YouTube, audio...)',t:'text',ph:'https://...'} ] },
   galerie:  { label:'Galerie (accueil)', icon:'🖼', empty:"Aucune photo ajoutée pour le moment.",
               fields:[ {k:'titre',l:'Légende (optionnel)',t:'text',ph:'Culte du dimanche'},
-                       {k:'fichier',l:'Photo',t:'file'} ] },
+                       {k:'lien',l:"Lien direct vers l'image",t:'text',ph:'https://...'} ] },
   annonces: { label:'Annonces', icon:'📢', empty:"Aucune annonce publiée pour le moment.",
               fields:[ {k:'titre',l:'Titre',t:'text',ph:'Grande soirée de prière'},
                        {k:'texte',l:'Texte',t:'textarea',ph:"Détails de l'annonce..."},
-                       {k:'fichier',l:'Image ou vidéo (optionnel)',t:'file'},
-                       {k:'lien',l:'Lien externe (optionnel)',t:'text',ph:'https://...'} ] },
+                       {k:'lien',l:'Lien (image, vidéo YouTube...)',t:'text',ph:'https://...'} ] },
   emissions:{ label:'Émissions radio', icon:'🎙', empty:"Aucune émission publiée pour le moment.",
               fields:[ {k:'titre',l:"Titre de l'émission",t:'text',ph:'Étude biblique du mardi'},
                        {k:'description',l:'Description',t:'textarea',ph:"Résumé de l'émission..."},
-                       {k:'fichier',l:'Fichier audio',t:'file'},
-                       {k:'lien',l:'Lien externe (optionnel)',t:'text',ph:'https://...'} ] },
+                       {k:'lien',l:'Lien audio',t:'text',ph:'https://...'} ] },
 };
 
 let DATA = {
   config: { nom:'EPEJ', sousTitre:'Église du Plein Évangile de Jésus-Christ', mission:'', vision:'',
-            radioNom:'', radioFrequence:'', radioLien:'', radioFluxUrl:'', logo:null, adminPin:'2026',
+            radioNom:'', radioFrequence:'', radioLien:'', radioFluxUrl:'', logoUrl:'', adminPin:'2026',
             adresse:'', telephone:'', email:'', facebook:'', youtube:'',
             bibleLiens: {
               fr:'https://www.bible.com/languages/fra', en:'https://www.bible.com/languages/eng',
@@ -403,20 +400,6 @@ function richText(s){
 /* ===================== STOCKAGE — FIREBASE ===================== */
 const EPEJ_COL = 'epej'; // collection Firestore — un document par section + un document "config"
 
-function fileToBase64(file){ // conservé pour compat éventuelle, non utilisé par Firebase Storage
-  return new Promise((resolve,reject)=>{
-    const reader = new FileReader();
-    reader.onload = ()=> resolve(reader.result.split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-async function uploadFile(path, file){
-  const ref = storage.ref().child(path);
-  await ref.put(file);
-  return await ref.getDownloadURL();
-}
-
 function loadAll(){
   if(typeof db === 'undefined'){
     toast('Firebase non configuré — voir firebase-config.js');
@@ -455,7 +438,7 @@ function renderHeader(){
   document.getElementById('hdrNom').textContent = DATA.config.nom || 'EPEJ';
   document.getElementById('hdrSous').textContent = DATA.config.sousTitre || '';
   const logoEl = document.getElementById('hdrLogo');
-  logoEl.src = (DATA.config.logo && DATA.config.logo.url) || 'icons/icon-512.png';
+  logoEl.src = DATA.config.logoUrl || 'icons/icon-512.png';
   logoEl.style.display = 'block';
   document.getElementById('tunerFreq').textContent = (DATA.config.radioFrequence || '—') + ' FM';
   document.getElementById('tunerName').textContent = DATA.config.radioNom || 'Radio non configurée';
@@ -511,14 +494,11 @@ function annoncesTicker(){
   const items = DATA.annonces;
   if(!items || !items.length) return '';
   const card = a => {
-    const img = a.fichier && (a.fichier.type||'').startsWith('image/');
-    const vid = a.fichier && (a.fichier.type||'').startsWith('video/');
-    const clickable = a.fichier || a.lien;
-    const onclick = a.fichier
-      ? `onclick="openFileModal('${esc(a.fichier.url)}','${esc(a.fichier.type||'')}','${esc(a.fichier.nom||'')}')"`
-      : (a.lien ? `onclick="window.open('${esc(a.lien)}','_blank')"` : '');
-    return `<div class="annonce-card" ${clickable?onclick:''} style="${clickable?'cursor:pointer':''}">
-      ${img ? `<img src="${esc(a.fichier.url)}" alt="">` : (vid ? `<div class="annonce-thumb">▶</div>` : `<div class="annonce-thumb">📢</div>`)}
+    const isImg = a.lien && /\.(jpe?g|png|gif|webp|avif)(\?.*)?$/i.test(a.lien);
+    const isVid = a.lien && (ytId(a.lien) || /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(a.lien));
+    const onclick = a.lien ? `onclick="window.open('${esc(a.lien)}','_blank')"` : '';
+    return `<div class="annonce-card" ${a.lien?onclick:''} style="${a.lien?'cursor:pointer':''}">
+      ${isImg ? `<img src="${esc(a.lien)}" alt="">` : (isVid ? `<div class="annonce-thumb">▶</div>` : `<div class="annonce-thumb">📢</div>`)}
       <div class="annonce-text"><b>${esc(a.titre)}</b>${a.texte?`<span>${esc(a.texte)}</span>`:''}</div>
     </div>`;
   };
@@ -583,36 +563,27 @@ function viewListePublique(sec){
         <div class="card-title">${esc(it.titre)}</div>
         ${meta ? `<div class="card-meta">${meta}</div>` : ''}
         ${desc && it[desc.k] ? `<div class="card-desc">${richText(it[desc.k])}</div>` : ''}
-        ${it.lien ? `<a class="card-link" href="${esc(it.lien)}" target="_blank" rel="noopener">Ouvrir le lien ↗</a>` : ''}
-        ${renderFichier(it.fichier)}
+        ${renderLien(it.lien)}
       </div>`;
   }).join('');
   return html;
 }
-function renderFichier(f){
-  if(!f || !f.url) return '';
-  const type = f.type || '';
-  if(type.startsWith('image/')) return `<img src="${esc(f.url)}" alt="${esc(f.nom||'')}" style="width:100%;border-radius:12px;margin-top:10px;display:block;cursor:pointer;" onclick="openFileModal('${esc(f.url)}','${esc(type)}','${esc(f.nom||'')}')">`;
-  if(type.startsWith('video/')) return `<video src="${esc(f.url)}" controls style="width:100%;border-radius:12px;margin-top:10px;"></video>`;
-  if(type.startsWith('audio/')) return `<audio src="${esc(f.url)}" controls style="width:100%;margin-top:10px;"></audio>`;
-  return `<button class="card-link" style="background:none;border:none;padding:0;cursor:pointer;font-family:inherit;" onclick="openFileModal('${esc(f.url)}','${esc(type)}','${esc(f.nom||'')}')">📎 ${esc(f.nom||'Ouvrir le fichier')}</button>`;
+function ytId(url){
+  const m = (url||'').match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/|youtube\.com\/embed\/)([\w-]{6,})/);
+  return m ? m[1] : null;
 }
-function openFileModal(url, type, nom){
-  type = type || '';
-  let html = '';
-  if(type.startsWith('image/')){
-    html = `<img src="${esc(url)}" alt="${esc(nom)}" style="max-width:100%;max-height:100%;border-radius:8px;object-fit:contain;">`;
-  } else if(type.startsWith('video/')){
-    html = `<video src="${esc(url)}" controls autoplay style="max-width:100%;max-height:100%;border-radius:8px;"></video>`;
-  } else if(type.startsWith('audio/')){
-    html = `<audio src="${esc(url)}" controls autoplay style="width:100%;"></audio>`;
-  } else if(type==='application/pdf' || /\.pdf($|\?)/i.test(url)){
-    html = `<iframe src="${esc(url)}" style="width:100%;height:100%;border:none;border-radius:8px;background:#fff;"></iframe>`;
-  } else {
-    const viewer = 'https://docs.google.com/gview?url='+encodeURIComponent(url)+'&embedded=true';
-    html = `<iframe src="${esc(viewer)}" style="width:100%;height:100%;border:none;border-radius:8px;background:#fff;"></iframe>`;
-  }
-  document.getElementById('fileModalBody').innerHTML = html;
+function renderLien(url){
+  if(!url) return '';
+  const u = url.trim();
+  const yt = ytId(u);
+  if(yt) return `<div class="media-embed"><iframe src="https://www.youtube.com/embed/${yt}" title="Vidéo" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`;
+  if(/\.(jpe?g|png|gif|webp|avif)(\?.*)?$/i.test(u)) return `<img src="${esc(u)}" alt="" style="width:100%;border-radius:12px;margin-top:10px;display:block;cursor:pointer;" onclick="openMediaModal('${esc(u)}')">`;
+  if(/\.(mp3|wav|ogg|m4a|aac)(\?.*)?$/i.test(u)) return `<audio src="${esc(u)}" controls style="width:100%;margin-top:10px;"></audio>`;
+  if(/\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(u)) return `<video src="${esc(u)}" controls style="width:100%;border-radius:12px;margin-top:10px;"></video>`;
+  return `<a class="card-link" href="${esc(u)}" target="_blank" rel="noopener">Ouvrir le lien ↗</a>`;
+}
+function openMediaModal(url){
+  document.getElementById('fileModalBody').innerHTML = `<img src="${esc(url)}" alt="" style="max-width:100%;max-height:100%;border-radius:8px;object-fit:contain;">`;
   document.getElementById('fileModal').style.display = 'flex';
   document.body.style.overflow = 'hidden';
 }
@@ -645,8 +616,7 @@ function viewRadio(){
         <div class="card">
           <div class="card-title">${esc(e.titre)}</div>
           ${e.description ? `<div class="card-desc">${richText(e.description)}</div>` : ''}
-          ${e.lien ? `<a class="card-link" href="${esc(e.lien)}" target="_blank" rel="noopener">Ouvrir le lien ↗</a>` : ''}
-          ${renderFichier(e.fichier)}
+          ${renderLien(e.lien)}
         </div>`).join('')}
     ` : ''}
   `;
@@ -718,7 +688,7 @@ function adminGeneral(){
   const c = DATA.config;
   return `
     <div class="section-eyebrow">Identité & radio</div>
-    ${fileFieldConfigHtml('logo','Logo de l\'église','Format carré recommandé.')}
+    <div class="field"><label>Lien direct vers le logo (image, optionnel)</label><input id="f_logoUrl" value="${esc(c.logoUrl||'')}" placeholder="https://..."><div class="field-hint">Laisse vide pour garder le logo EPEJ par défaut.</div></div>
     <div class="field"><label>Nom de l'église</label><input id="f_nom" value="${esc(c.nom)}"></div>
     <div class="field"><label>Sous-titre</label><input id="f_sousTitre" value="${esc(c.sousTitre)}"></div>
     <div class="field"><label>Mission</label><textarea id="f_mission" placeholder="La mission de l'église...">${esc(c.mission)}</textarea><div class="field-hint">Texte simple, ou HTML pour la mise en forme.</div></div>
@@ -738,18 +708,6 @@ function adminGeneral(){
     <button class="btn" onclick="saveGeneral()">Enregistrer les modifications</button>
   `;
 }
-function fileFieldConfigHtml(key, label, hint){
-  const current = DATA.config[key];
-  let html = `<div class="field"><label>${label}</label>`;
-  if(current && current.url){
-    html += `<div class="file-current"><a href="${esc(current.url)}" target="_blank" rel="noopener">📎 ${esc(current.nom||'Fichier actuel')}</a><button type="button" class="icon-btn" onclick="clearConfigFile('${key}')" title="Retirer">✕</button></div>`;
-  }
-  html += `<input type="file" id="cf_${key}" accept="image/*">`;
-  html += `<div class="field-hint">${hint||"Image."}</div>`;
-  html += `</div>`;
-  return html;
-}
-function clearConfigFile(key){ DATA.config[key] = null; render(); }
 async function saveGeneral(){
   DATA.config.nom = document.getElementById('f_nom').value.trim() || 'EPEJ';
   DATA.config.sousTitre = document.getElementById('f_sousTitre').value.trim();
@@ -765,17 +723,7 @@ async function saveGeneral(){
   DATA.config.facebook = document.getElementById('f_facebook').value.trim();
   DATA.config.youtube = document.getElementById('f_youtube').value.trim();
   DATA.config.adminPin = document.getElementById('f_adminPin').value.trim() || '2026';
-  const logoInp = document.getElementById('cf_logo');
-  if(logoInp && logoInp.files && logoInp.files[0]){
-    const file = logoInp.files[0];
-    toast('Envoi du logo en cours…');
-    try{
-      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-      const path = `uploads/config/logo_${Date.now()}_${safeName}`;
-      const url = await uploadFile(path, file);
-      DATA.config.logo = { url, nom: file.name, type: file.type };
-    }catch(e){ toast("Échec de l'envoi du logo"); return; }
-  }
+  DATA.config.logoUrl = document.getElementById('f_logoUrl').value.trim();
   await saveConfig();
   toast('Informations enregistrées');
   render();
@@ -811,8 +759,8 @@ function adminCrud(sec){
     return html;
   }
   html += items.map(it=>{
-    const subField = s.fields.find(f=>f.k!=='titre' && f.t!=='file');
-    const subText = subField ? (it[subField.k]||'') : (it.fichier && it.fichier.nom ? '📎 '+it.fichier.nom : '');
+    const subField = s.fields.find(f=>f.k!=='titre');
+    const subText = subField ? (it[subField.k]||'') : '';
     return `
     <div class="item-row">
       <div class="it"><b>${esc(it.titre)}</b><span>${esc(subText)}</span></div>
@@ -828,7 +776,6 @@ function adminForm(sec){
   const s = SECTIONS[sec];
   const item = editing.id ? DATA[sec].find(x=>x.id===editing.id) : {};
   const fieldsHtml = s.fields.map(f=>{
-    if(f.t==='file') return fileFieldHtml(sec,f,item);
     const val = esc(item[f.k]||'');
     if(f.t==='textarea') return `<div class="field"><label>${f.l}</label><textarea id="ff_${f.k}" placeholder="${esc(f.ph||'')}">${val}</textarea><div class="field-hint">Texte simple, ou HTML pour la mise en forme (ex. &lt;b&gt;gras&lt;/b&gt;, &lt;a href="..."&gt;lien&lt;/a&gt;).</div></div>`;
     return `<div class="field"><label>${f.l}</label><input id="ff_${f.k}" value="${val}" placeholder="${esc(f.ph||'')}"></div>`;
@@ -842,49 +789,12 @@ function adminForm(sec){
     </div>
   `;
 }
-function fileFieldHtml(sec, f, item){
-  const current = item && item[f.k];
-  let html = `<div class="field"><label>${f.l}</label>`;
-  if(current && current.url){
-    html += `<div class="file-current"><a href="${esc(current.url)}" target="_blank" rel="noopener">📎 ${esc(current.nom||'Fichier actuel')}</a><button type="button" class="icon-btn" onclick="clearFile('${sec}','${f.k}')" title="Retirer le fichier">✕</button></div>`;
-  }
-  html += `<input type="file" id="ff_${f.k}" accept="image/*,video/*,audio/*,.pdf,.doc,.docx">`;
-  html += `<div class="field-hint">Images, PDF, Word, audio ou vidéo. L'envoi peut prendre un moment pour les gros fichiers, selon la connexion.</div>`;
-  html += `</div>`;
-  return html;
-}
-function clearFile(sec, key){
-  if(!editing || !editing.id) return;
-  const item = DATA[sec].find(x=>x.id===editing.id);
-  if(item) item[key] = null;
-  render();
-}
 async function submitForm(sec){
   const s = SECTIONS[sec];
   const titreField = document.getElementById('ff_titre');
   if(titreField && !titreField.value.trim()){ toast('Le titre est requis'); return; }
   const obj = editing.id ? DATA[sec].find(x=>x.id===editing.id) : {id:uid()};
-  s.fields.forEach(f=>{
-    if(f.t==='file') return;
-    obj[f.k] = document.getElementById('ff_'+f.k).value.trim();
-  });
-  const fileFields = s.fields.filter(f=>f.t==='file');
-  for(const f of fileFields){
-    const inp = document.getElementById('ff_'+f.k);
-    if(inp && inp.files && inp.files[0]){
-      const file = inp.files[0];
-      toast(file.size > 5000000 ? 'Envoi du fichier en cours… (peut prendre un moment pour les gros fichiers)' : 'Envoi du fichier en cours…');
-      try{
-        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-        const path = `uploads/${sec}/${obj.id}/${Date.now()}_${safeName}`;
-        const url = await uploadFile(path, file);
-        obj[f.k] = { url, nom: file.name, type: file.type };
-      }catch(e){
-        toast("Échec de l'envoi du fichier");
-        return;
-      }
-    }
-  }
+  s.fields.forEach(f=>{ obj[f.k] = document.getElementById('ff_'+f.k).value.trim(); });
   if(!editing.id) DATA[sec].push(obj);
   await saveSection(sec);
   toast(editing.id ? 'Modifications enregistrées' : 'Élément ajouté');
